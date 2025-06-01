@@ -33,6 +33,7 @@ int getLine(LineInfo* info, int offset){
         totalOffset += info->raw[i + 1];
         if (offset < totalOffset) return info->raw[i];
     }
+    return -1;    // Unreachable unless offset is invalid.
 }
 void freeLineInfo(LineInfo* info){
     FREE_ARRAY(int, info->raw, info->capacity);
