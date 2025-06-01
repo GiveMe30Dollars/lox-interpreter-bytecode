@@ -1,4 +1,4 @@
-# Bytecode-based Lox Interpreter
+# Bytecode-Based Lox Interpreter
 
 This is an ongoing C implemetation of the Lox interpreter as described in the second half of the book:  
 - **"Crafting Interpreters"**: https://craftinginterpreters.com/ by Robert Nystrom.
