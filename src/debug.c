@@ -1,4 +1,5 @@
 #include "debug.h"
+#include <stdio.h>
 
 // PRIVATE HELPER FUNCTIONS
 
@@ -43,5 +44,15 @@ int disassembleInstruction(Chunk* chunk, int offset){
             return constantInstruction("OP_CONSTANT", chunk, offset);
         case OP_RETURN:
             return simpleInstruction("OP_RETURN", offset);
+    }
+}
+
+void dumpRaw(Chunk* chunk, const char* name){
+    printf("== %s ==\n", name);
+    for (int i = 0; i < chunk->count; i++){
+        // linebreak on every 8th byte
+        if ((i + 1) & 0x8)
+            printf("\n");
+        printf("0x%02x ", chunk->code[i]);
     }
 }
