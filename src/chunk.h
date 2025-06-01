@@ -15,8 +15,19 @@ typedef enum {
 typedef struct {
     int count;
     int capacity;
+    int* raw;
+} LineInfo;
+
+void initLineInfo(LineInfo* lineInfo);
+void addLine(LineInfo* lineInfo, int line);
+int getLine(LineInfo* lineInfo, int offset);
+void freeLineInfo(LineInfo* lineInfo);
+
+typedef struct {
+    int count;
+    int capacity;
     uint8_t* code;
-    int* lines;
+    LineInfo lineInfo;
     ValueArray constants;
 } Chunk;
     

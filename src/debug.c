@@ -30,10 +30,10 @@ int disassembleInstruction(Chunk* chunk, int offset){
     printf("%04d ", offset);
 
     // Line information
-    if (offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1]){
+    if (offset > 0 && getLine(&chunk->lineInfo, offset) == getLine(&chunk->lineInfo, offset - 1)){
         printf("   | ");
     } else {
-        printf("%4d ", chunk->lines[offset]);
+        printf("%4d ", getLine(&chunk->lineInfo, offset));
     }
 
     // Opcode information
