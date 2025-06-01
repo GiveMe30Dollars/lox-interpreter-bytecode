@@ -12,10 +12,9 @@ Initialized 1st June 2025.
 
 ## Usage  
 Run from Git Bash (or any command-line interface that executes .sh files):  
-  - `./program.sh [command-line arguments]...`
+  - `./lox.sh [command-line arguments]...`
     
 This will compile and run the project as executable `main.exe`.  
-`program.sh` and `main.exe` may be renamed based on your project.  
 
 ## Dependencies  
 To compile and run the project, the following dependencies are required:
