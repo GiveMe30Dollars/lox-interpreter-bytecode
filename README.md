@@ -1,5 +1,12 @@
-# template-cpp  
-A personal template repository for C++ projects.
+# Bytecode-based Lox Interpreter
+
+This is an ongoing C++ implemetation of the Lox interpreter as described in the second half of the book:  
+- **"Crafting Interpreters"**: https://craftinginterpreters.com/ by Robert Nystrom.
+
+Sister project to the AST-based Lox Interpreter:
+- https://github.com/GiveMe30Dollars/lox-interpreter-ast
+
+Initialized 1st June 2025.
 
 ## Usage  
 Run from Git Bash (or any command-line interface that executes .sh files):  
@@ -16,5 +23,5 @@ To compile and run the project, the following dependencies are required:
   - This directory should be cloned onto your local machine.
   - The system environmental path `VCPKG_ROOT` should be set to the root of this directory.
 - *Any command-line interface that executes `.sh` files.*
-  - For Windows and macOS: **Git Bash**: https://git-scm.com/downloads
-  - For Linux: *None.* Natively supported.  
+  - For Windows: **Git Bash**: https://git-scm.com/downloads
+  - For Linux and macOS: *None.* Natively supported.  
