@@ -172,20 +172,6 @@ void initScanner(const char* source){
     scanner.start = source;
     scanner.curr = source;
     scanner.line = 1;
-
-    int line = -1;
-    for (;;) {
-        Token token = scanToken();
-        if (token.line != line) {
-        printf("%4d ", token.line);
-        line = token.line;
-        } else {
-        printf("   | ");
-        }
-        printf("%2d '%.*s'\n", token.type, token.length, token.start); 
-
-        if (token.type == TOKEN_EOF) break;
-    }
 }
 
 Token scanToken(){
