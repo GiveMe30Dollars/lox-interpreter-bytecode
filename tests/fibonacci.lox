@@ -1,0 +1,14 @@
+fun fib(n){
+    if (n <= 1) return n;
+    return fib(n - 2) + fib(n - 1);
+}
+
+var start = clock();
+print fib;
+print fib(30);
+var end = clock();
+print "Time Elapsed (s):";
+print (end - start);
+
+// The following is a general benchmark on the performance of the interpreter.
+// For fib(30), the AST-based implemetation took ~90 seconds
