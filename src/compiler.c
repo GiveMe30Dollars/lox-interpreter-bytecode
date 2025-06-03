@@ -3,14 +3,15 @@
 
 #include "common.h"
 #include "compiler.h"
-#include "scanner.h"
 #include "debug.h"
+#include "object.h"
+#include "scanner.h"
 
 // PRIVATE FUNCTIONS
 
 typedef struct {
-    Token prev;
-    Token curr;
+    Token previous;
+    Token current;
     bool hasError;
     bool panic;
 } Parser;
@@ -74,25 +75,25 @@ static void errorAt(Token* token, const char* message){
     fprintf(stderr, ": %s\n", message);
 }
 static void errorAtCurrent(const char* message){
-    errorAt(&parser.curr, message);
+    errorAt(&parser.current, message);
 }
 static void error(const char* message){
-    errorAt(&parser.prev, message);
+    errorAt(&parser.previous, message);
 }
 
 
 // PARSER HELPER FUNCTIONS
 static void advance(){
-    parser.prev = parser.curr;
+    parser.previous = parser.current;
     for (;;){
-        parser.curr = scanToken();
-        if (parser.curr.type != TOKEN_ERROR) break;
+        parser.current = scanToken();
+        if (parser.current.type != TOKEN_ERROR) break;
         // token is of type TOKEN_ERROR
-        errorAtCurrent(parser.curr.start);
+        errorAtCurrent(parser.current.start);
     }
 }
 static void consume(TokenType type, const char* message){
-    if (parser.curr.type == type){
+    if (parser.current.type == type){
         advance();
         return;
     }
@@ -100,9 +101,9 @@ static void consume(TokenType type, const char* message){
 }
 
 
-// PARSER OUTPUT FUNCTIONS
+// PARSER EMIT FUNCTIONS
 static void emitByte(uint8_t byte){
-    writeChunk(currentChunk(), byte, parser.prev.line);
+    writeChunk(currentChunk(), byte, parser.previous.line);
 }
 static void emitBytes(uint8_t byte1, uint8_t byte2){
     emitByte(byte1);
@@ -140,8 +141,13 @@ static void parsePrecedence(Precedence precedence);
 
 // PARSER EXPRESSION FUNCTIONS
 static void number(){
-    double value = strtod(parser.prev.start, NULL);
+    double value = strtod(parser.previous.start, NULL);
     emitConstant(NUMBER_VAL(value));
+}
+static void string(){
+    // strip quotation marks in call to copyString()
+    // (copyString() because there is no guarantee that the source string survives past compilation)
+    emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
 }
 static void grouping(){
     expression();
@@ -149,8 +155,8 @@ static void grouping(){
     // No bytecode emitted.
 }
 static void unary(){
-    // NOTE: for prefix unary operation
-    TokenType operatorType = parser.prev.type;
+    // NOTE: for prefix unary operations
+    TokenType operatorType = parser.previous.type;
 
     // Compile operand
     parsePrecedence(PREC_UNARY);
@@ -163,7 +169,7 @@ static void unary(){
     }
 }
 static void binary(){
-    TokenType operatorType = parser.prev.type;
+    TokenType operatorType = parser.previous.type;
     ParseRule* rule = getRule(operatorType);
     parsePrecedence((Precedence)(rule->precedence + 1));
 
@@ -182,7 +188,7 @@ static void binary(){
     }
 }
 static void literal(){
-    switch(parser.prev.type){
+    switch(parser.previous.type){
         case TOKEN_NIL:   emitByte(OP_NIL); break;
         case TOKEN_TRUE:  emitByte(OP_TRUE); break;
         case TOKEN_FALSE: emitByte(OP_FALSE); break;
@@ -217,7 +223,7 @@ ParseRule rules[] = {
   [TOKEN_LESS]          = {NULL,     binary,   PREC_COMPARISON},
   [TOKEN_LESS_EQUAL]    = {NULL,     binary,   PREC_COMPARISON},
   [TOKEN_IDENTIFIER]    = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_STRING]        = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_STRING]        = {string,     NULL,   PREC_NONE},
   [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
   [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
@@ -245,7 +251,7 @@ static ParseRule* getRule(TokenType type){
 // PRATT PARSER
 static void parsePrecedence(Precedence precedence){
     advance();
-    ParseFn prefixRule = getRule(parser.prev.type)->prefix;
+    ParseFn prefixRule = getRule(parser.previous.type)->prefix;
     // numbers, strings etc all have a prefix rule
     // tokens starting with no valid prefix rule are syntax errors
     if (prefixRule == NULL){
@@ -256,9 +262,9 @@ static void parsePrecedence(Precedence precedence){
     prefixRule();
 
     // while infix rule is of higher binding power than specified, execute infix rule
-    while (precedence <= getRule(parser.curr.type)->precedence){
+    while (precedence <= getRule(parser.current.type)->precedence){
         advance();
-        ParseFn infixRule = getRule(parser.prev.type)->infix;
+        ParseFn infixRule = getRule(parser.previous.type)->infix;
         infixRule();
     }
 }

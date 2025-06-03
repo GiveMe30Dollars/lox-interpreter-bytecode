@@ -64,30 +64,7 @@ int main(int argc, const char *argv[]) {
         fprintf(stderr, "Usage: ./lox.sh [path]\n");
         exit(1);
     }
-
-    /*
-    Chunk chunk;
-    initChunk(&chunk);
-
-    int constantA = addConstant(&chunk, 1.2);
-    writeChunk(&chunk, OP_CONSTANT, 123);
-    writeChunk(&chunk, constantA, 123);
-
-    int constantB = addConstant(&chunk, 6);
-    writeChunk(&chunk, OP_CONSTANT, 244);
-    writeChunk(&chunk, constantB, 244);
-
-    writeChunk(&chunk, OP_NEGATE, 288);
-    writeChunk(&chunk, OP_ADD, 288);
-
-    writeChunk(&chunk, OP_RETURN, 300);
-
-    interpret(&chunk);
-
-    disassembleChunk(&chunk, "test chunk");
-
-    freeChunk(&chunk);
-    */
+    
     freeVM();
 
     return 0;

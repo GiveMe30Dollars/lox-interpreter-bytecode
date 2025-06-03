@@ -1,6 +1,8 @@
 #ifndef clox_scanner_h
 #define clox_scanner_h
 
+// Single-pass scanner:
+// every time scanToken is called, return the next token
 
 typedef enum {
   // Single-character tokens.

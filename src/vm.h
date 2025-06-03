@@ -10,7 +10,10 @@ typedef struct {
     uint8_t* ip;
     Value stack[STACK_MAX];
     Value* stackTop;
+    Obj* objects;
 } VM;
+
+extern VM vm;
 
 void initVM();
 void freeVM();
