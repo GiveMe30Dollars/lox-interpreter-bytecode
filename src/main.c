@@ -53,9 +53,14 @@ static void runFile(const char* path){
     interpret(source);
 }
 
-int main(int argc, const char *argv[]) {
-    initVM();
+#include "value.h"
+#include "object.h"
+#include "hashtable.h"
 
+int main(int argc, const char *argv[]) {
+    
+    initVM();
+    
     if (argc == 1){
         repl();
     } else if (argc == 2){
@@ -65,7 +70,14 @@ int main(int argc, const char *argv[]) {
         exit(1);
     }
     
-    freeVM();
+    // Obj* string = copyString("Hello World!", 12);
+    // Value wrapper = OBJ_VAL(string);
+    // printf("0x%08x\n", HASH_STRING(wrapper));
+
+    // Value num = NUMBER_VAL(3.1415);
+    // printf("0x%08x\n", HASH_DOUBLE(num));
+
+    // freeVM();
 
     return 0;
 }
