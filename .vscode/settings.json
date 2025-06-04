@@ -1,0 +1,22 @@
+{
+    "files.associations": {
+        "common.h": "c",
+        "xstring": "cpp",
+        "compare": "cpp",
+        "memory": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "xmemory": "cpp",
+        "xtr1common": "cpp",
+        "xutility": "cpp",
+        "charconv": "cpp",
+        "memory.h": "c",
+        "stdlib.h": "c",
+        "iterator": "c",
+        "scanner.h": "c",
+        "system_error": "c",
+        "xlocmon": "c",
+        "xlocale": "c"
+    }
+}
