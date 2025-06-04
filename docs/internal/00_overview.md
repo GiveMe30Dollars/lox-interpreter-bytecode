@@ -70,7 +70,7 @@ typedef struct {
 - **`lineInfo`**: Stores the line information of each bytecode instruction using run-length encoding. Used for runtime errors and disassembly.  
 - **`constants`**: A dynamic array storing the constant values used in the bytecode chunk. The opcode `OP_CONSTANT` and derivatives refer to contants by index in this array.
 
-Additionally, some runtime representations of Lox are written directly into the VM due to the compilation process.
+Additionally, some runtime representations of Lox are written directly into the VM during the compilation process.
 
 ### String Intern Table
 
@@ -122,7 +122,7 @@ typedef struct {
 InterpreterResult interpret(const char* source);
 ```
 
-**`ip`**: The instruction pointer into the bytecode in `chunk`.
-**`stack[]`, `stackTop`**: Static-size stack for evaluation and execution of code.
-**`strings`**: string intern table. see above.
-**`objects`**: a linked list of all Objects allocated during compile-time and runtime.
+**`ip`**: The instruction pointer into the bytecode in `chunk`.  
+**`stack[]`, `stackTop`**: Static-size stack for evaluation and execution of code.  
+**`strings`**: string intern table. see above.  
+**`objects`**: a linked list of all Objects allocated during compile-time and runtime.  
