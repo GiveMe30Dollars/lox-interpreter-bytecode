@@ -17,7 +17,7 @@ static void repl(){
             break;
         }
         if (memcmp(line, "exit\n", 5) == 0) break;
-        if (memcmp(line, "exit\n", 5) == 0){
+        if (memcmp(line, "reset\n", 5) == 0){
             freeVM();
             initVM();
             continue;
@@ -75,7 +75,7 @@ int main(int argc, const char *argv[]) {
         fprintf(stderr, "Usage: ./lox.sh [path]\n");
         exit(1);
     }
-    
+
     freeVM();
 
     return 0;
