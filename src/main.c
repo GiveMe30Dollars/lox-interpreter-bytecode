@@ -17,7 +17,13 @@ static void repl(){
             break;
         }
         if (memcmp(line, "exit\n", 5) == 0) break;
+        if (memcmp(line, "exit\n", 5) == 0){
+            freeVM();
+            initVM();
+            continue;
+        }
         interpret(line);
+        printf("STRING INTERN TABLE: %d\n", vm.strings.count);
     }
 }
 static char* readFile(const char* path){
@@ -70,14 +76,7 @@ int main(int argc, const char *argv[]) {
         exit(1);
     }
     
-    // Obj* string = copyString("Hello World!", 12);
-    // Value wrapper = OBJ_VAL(string);
-    // printf("0x%08x\n", HASH_STRING(wrapper));
-
-    // Value num = NUMBER_VAL(3.1415);
-    // printf("0x%08x\n", HASH_DOUBLE(num));
-
-    // freeVM();
+    freeVM();
 
     return 0;
 }

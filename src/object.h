@@ -21,12 +21,17 @@ struct Obj{
 // this enables pointer upcasting (ObjString* -> Obj*)
 // if type matches, can safely downcast
 
+
+// strings (immutable in Lox) cahce their own hash
+// this makes string lookups in hash tables faster
+// computation of hash is O(N) for its length
 struct ObjString{
     Obj obj;
     int length;
     char* chars;
+    uint32_t hash;
 };
-ObjString* copyString(char* start, int length);
+ObjString* copyString(const char* start, int length);
 ObjString* takeString(char* start, int length);
 
 

@@ -17,7 +17,8 @@ typedef enum {
     VAL_BOOL,
     VAL_NIL,
     VAL_NUMBER,
-    VAL_OBJ
+    VAL_OBJ,      // stores Obj* pointer, which can be cast to its object type
+    VAL_EMPTY,    // for internal use in hash table only. never exposed to user.
 } ValueType;
 
 typedef struct {
@@ -34,6 +35,7 @@ typedef struct {
 #define NIL_VAL()          ((Value){VAL_NIL, {.number = 0}})
 #define NUMBER_VAL(value)  ((Value){VAL_NUMBER, {.number = value}})
 #define OBJ_VAL(value)     ((Value){VAL_OBJ, {.obj = (Obj*)value}})
+#define EMPTY_VAL(value)   ((Value){VAL_EMPTY, {.number = 0}})
 // (The explicit cast suppresses some compilation warnings)
 
 // TYPE CHECK MACROS
@@ -41,6 +43,7 @@ typedef struct {
 #define IS_NIL(value)      ((value).type == VAL_NIL)
 #define IS_NUMBER(value)   ((value).type == VAL_NUMBER)
 #define IS_OBJ(value)      ((value).type == VAL_OBJ)
+#define IS_EMPTY(value)      ((value).type == VAL_EMPTY)
 
 // CAST MACROS
 // (does not assert type!)
@@ -63,7 +66,7 @@ typedef struct {
 void printValue(Value value);
 
 void initValueArray(ValueArray* array);
-void writeValueArray(ValueArray* array, Value value);
 void freeValueArray(ValueArray* array);
+void writeValueArray(ValueArray* array, Value value);
 
 #endif

@@ -4,6 +4,7 @@
 #include "object.h"
 #include "memory.h"
 #include "vm.h"
+#include "hashtable.h"
 
 
 // GENERAL OBJECT ALLOCATION METHODS
@@ -26,25 +27,40 @@ static Obj* allocateObject(size_t size, ObjType type){
 
 // OBJSTRING METHODS
 
-static ObjString* allocateString(char* chars, int length){
+static ObjString* allocateString(char* chars, int length, uint32_t hash){
+    // allocate, intern and return a new ObjString
     ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
     string->length = length;
     string->chars = chars;
+    string->hash = hash;
+    tableSet(&vm.strings, OBJ_VAL(string), NIL_VAL());
     return string;
 }
-ObjString* copyString(char* start, int length){
+ObjString* copyString(const char* start, int length){
     // creates a deep copy of C-substring with terminator (+ '\0')
     // encapsulate in ObjString*
+
+    uint32_t hash = HASH_CSTRING(start, length);
+    ObjString* interned = tableFindString(&vm.strings, start, length, hash);
+    if (interned != NULL) return interned;
+
     char* heapChars = ALLOCATE(char, length + 1);
     memcpy(heapChars, start, length);
     heapChars[length] = '\0';
-    return allocateString(heapChars, length);
+    return allocateString(heapChars, length, hash);
 }
 ObjString* takeString(char* start, int length){
     // takes the pointer to a C-string
     // encapsulate in ObjString*
-    // (string must be owned by created ObjString* !)
-    return allocateString(start, length);
+    // (string must be solely owned by created ObjString* !)
+
+    uint32_t hash = HASH_CSTRING(start, length);
+    ObjString* interned = tableFindString(&vm.strings, start, length, hash);
+    if (interned != NULL){
+        FREE_ARRAY(char, start, length + 1);
+        return interned;
+    }
+    return allocateString(start, length, hash);
 }
 
 

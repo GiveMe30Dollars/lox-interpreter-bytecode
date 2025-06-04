@@ -13,17 +13,17 @@
 // global variable
 VM vm;
 
-// INITIALIZE VM
+// INITIALIZE/FREE VM
 static void resetStack(){
     vm.stackTop = vm.stack;
-    vm.objects = NULL;
 }
 void initVM(){
     resetStack();
+    initTable(&vm.strings);
+    vm.objects = NULL;
 }
-
-// FREE VM
 void freeVM(){
+    freeTable(&vm.strings);
     freeObjects();
 }
 

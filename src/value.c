@@ -15,6 +15,8 @@ void printValue(Value value){
             printf("%g", AS_NUMBER(value)); break;
         case VAL_OBJ:
             printObject(value); break;
+        case VAL_EMPTY:
+            printf("<empty>"); break;
 
         default: return;    // Unreachable.
     }
@@ -26,12 +28,10 @@ bool valuesEqual(Value a, Value b){
         case VAL_NIL:    return true;
         case VAL_NUMBER: return AS_NUMBER(a) == AS_NUMBER(b);
         case VAL_OBJ:{
-            ObjString* aString = AS_STRING(a);
-            ObjString* bString = AS_STRING(b);
-            // cannot directly memcmp as padding bytes have undefined behaviour
-            return (aString->length == bString->length) && 
-                (memcmp(aString->chars, bString->chars, aString->length) == 0);
+            // for ObjString, directly compare as all strings are interned
+            return AS_OBJ(a) == AS_OBJ(b);
         }
+        case VAL_EMPTY:  return true;
         default: return false;    // Unreachable.
     }
 }
@@ -40,6 +40,10 @@ void initValueArray(ValueArray* array){
     array->count = 0;
     array->capacity = 0;
     array->values = NULL;
+}
+void freeValueArray(ValueArray* array){
+    FREE_ARRAY(Value, array->values, array->capacity);
+    initValueArray(array);
 }
 
 void writeValueArray(ValueArray* array, Value value){
@@ -51,9 +55,3 @@ void writeValueArray(ValueArray* array, Value value){
     array->values[array->count] = value;
     array->count++;
 }
-
-void freeValueArray(ValueArray* array){
-    FREE_ARRAY(Value, array->values, array->capacity);
-    initValueArray(array);
-}
-
