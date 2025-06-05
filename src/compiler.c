@@ -56,7 +56,8 @@ static Chunk* currentChunk(){
 static void errorAt(Token* token, const char* message){
     // if panic flag set, suppress all errors until resynchronized
     if (parser.panic) return;
-    // set panic flag
+    // set flags corresponding to error found
+    parser.hasError = true;
     parser.panic = true;
 
     // print error line
@@ -64,12 +65,12 @@ static void errorAt(Token* token, const char* message){
 
     // Print position of token
     if (token->type == TOKEN_EOF){
-        fprintf(stderr, "at end");
+        fprintf(stderr, " at end");
     } else if (token->type == TOKEN_ERROR){
         // print nothing; for scanner error tokens
     } else {
         // print token lexeme
-        fprintf(stderr, "at '%.*s'", token->length, token->start);
+        fprintf(stderr, " at '%.*s'", token->length, token->start);
     }
 
     fprintf(stderr, ": %s\n", message);
@@ -98,6 +99,32 @@ static void consume(TokenType type, const char* message){
         return;
     }
     errorAtCurrent(message);
+}
+static bool check (TokenType type){
+    return parser.current.type == type;
+}
+static bool match (TokenType type){
+    if (!check(type)) return false;
+    advance();
+    return true;
+}
+static void synchronize(){
+    parser.panic = false;
+    while (parser.current.type != TOKEN_EOF){
+        if (parser.previous.type == TOKEN_SEMICOLON) return;
+        switch (parser.current.type){
+            case TOKEN_PRINT:
+            case TOKEN_VAR:
+            case TOKEN_IF:
+            case TOKEN_WHILE:
+            case TOKEN_FOR:
+            case TOKEN_FUN:
+            case TOKEN_CLASS:
+                return;
+            default: ;    // Nothing. fall through and advance.
+        }
+        advance();
+    }
 }
 
 
@@ -135,6 +162,9 @@ static void endCompiler(){
 
 // FORWARD DECLARATION OF PRATT-PARSER RELATED FUNCTIONS
 static void expression();
+static void statement();
+static void declaration();
+
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
@@ -196,8 +226,65 @@ static void literal(){
     }
 }
 
+
+// PARSER VARIABLE HELPER FUNCTIONS
+static uint8_t identifierConstant(Token* name){
+    return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
+}
+static uint8_t parseVariable(const char* errorMessage){
+    consume(TOKEN_IDENTIFIER, errorMessage);
+    return identifierConstant(&parser.previous);
+}
+static void defineVariable(uint8_t global){
+    emitBytes(OP_DEFINE_GLOBAL, global);
+}
+static void namedVariable(Token name){
+    uint8_t arg = identifierConstant(&name);
+    emitBytes(OP_GET_GLOBAL, arg);
+}
+static void variable(){
+    namedVariable(parser.previous);
+}
+
+
+// PARSER STATEMENT FUNCTIONS
+static void varDeclaration(){
+    uint8_t global = parseVariable("Expect variable name.");
+
+    // Evaluate and emit bytecode for initialization value first
+    if (match(TOKEN_EQUAL)){
+        expression();
+    } else {
+        emitByte(OP_NIL);
+    }
+
+    consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+    defineVariable(global);
+}
+static void printStatement(){
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
+    emitByte(OP_PRINT);
+}
+static void exprStatement(){
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
+    emitByte(OP_POP);
+}
+
 static void expression(){
     parsePrecedence(PREC_ASSIGNMENT);
+}
+static void statement(){
+    if (match(TOKEN_PRINT)) printStatement();
+    else exprStatement();
+}
+static void declaration(){
+    if (match(TOKEN_VAR)){
+        varDeclaration();
+    } else {
+        statement();
+    }
 }
 
 
@@ -222,7 +309,7 @@ ParseRule rules[] = {
   [TOKEN_GREATER_EQUAL] = {NULL,     binary,   PREC_COMPARISON},
   [TOKEN_LESS]          = {NULL,     binary,   PREC_COMPARISON},
   [TOKEN_LESS_EQUAL]    = {NULL,     binary,   PREC_COMPARISON},
-  [TOKEN_IDENTIFIER]    = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_IDENTIFIER]    = {variable,     NULL,   PREC_NONE},
   [TOKEN_STRING]        = {string,     NULL,   PREC_NONE},
   [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
   [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
@@ -283,25 +370,9 @@ bool compile(const char* source, Chunk* chunk){
     // primes scanner such that current has a token
     advance();
 
-    expression();
+    declaration();
 
     consume(TOKEN_EOF, "Expect end of expression.");
-
-    /*
-    int line = -1;
-    for (;;) {
-        Token token = scanToken();
-        if (token.line != line) {
-        printf("%4d ", token.line);
-        line = token.line;
-        } else {
-        printf("   | ");
-        }
-        printf("%2d '%.*s'\n", token.type, token.length, token.start); 
-
-        if (token.type == TOKEN_EOF) break;
-    }*/
-
     endCompiler();
 
     return !parser.hasError;
