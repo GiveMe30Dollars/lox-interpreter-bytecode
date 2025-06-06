@@ -31,7 +31,7 @@ typedef enum {
 } Precedence;
 // Precedence enum is ordered in ascending binding power
 
-typedef void (*ParseFn)();
+typedef void (*ParseFn)(bool canAssign);
 typedef struct {
     ParseFn prefix;
     ParseFn infix;
@@ -170,21 +170,21 @@ static void parsePrecedence(Precedence precedence);
 
 
 // PARSER EXPRESSION FUNCTIONS
-static void number(){
+static void number(bool canAssign){
     double value = strtod(parser.previous.start, NULL);
     emitConstant(NUMBER_VAL(value));
 }
-static void string(){
+static void string(bool canAssign){
     // strip quotation marks in call to copyString()
     // (copyString() because there is no guarantee that the source string survives past compilation)
     emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
 }
-static void grouping(){
+static void grouping(bool canAssign){
     expression();
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
     // No bytecode emitted.
 }
-static void unary(){
+static void unary(bool canAssign){
     // NOTE: for prefix unary operations
     TokenType operatorType = parser.previous.type;
 
@@ -198,7 +198,7 @@ static void unary(){
         default: return;    // Unreachable.
     }
 }
-static void binary(){
+static void binary(bool canAssign){
     TokenType operatorType = parser.previous.type;
     ParseRule* rule = getRule(operatorType);
     parsePrecedence((Precedence)(rule->precedence + 1));
@@ -217,7 +217,7 @@ static void binary(){
         case TOKEN_SLASH:   emitByte(OP_DIVIDE); break;
     }
 }
-static void literal(){
+static void literal(bool canAssign){
     switch(parser.previous.type){
         case TOKEN_NIL:   emitByte(OP_NIL); break;
         case TOKEN_TRUE:  emitByte(OP_TRUE); break;
@@ -238,12 +238,19 @@ static uint8_t parseVariable(const char* errorMessage){
 static void defineVariable(uint8_t global){
     emitBytes(OP_DEFINE_GLOBAL, global);
 }
-static void namedVariable(Token name){
+static void namedVariable(Token name, bool canAssign){
     uint8_t arg = identifierConstant(&name);
-    emitBytes(OP_GET_GLOBAL, arg);
+    if (canAssign && match(TOKEN_EQUAL)){
+        expression();
+        emitBytes(OP_SET_GLOBAL, arg);
+    } else {
+        emitBytes(OP_GET_GLOBAL, arg);
+    }
+    // if variable assignment on an invalid target, return to parsePrecedence and do not consume '='
+    // error handling is done there.
 }
-static void variable(){
-    namedVariable(parser.previous);
+static void variable(bool canAssign){
+    namedVariable(parser.previous, canAssign);
 }
 
 
@@ -337,22 +344,32 @@ static ParseRule* getRule(TokenType type){
 
 // PRATT PARSER
 static void parsePrecedence(Precedence precedence){
+
+    // advance and get the prefix rule of the token we advanced past
     advance();
     ParseFn prefixRule = getRule(parser.previous.type)->prefix;
+
     // numbers, strings etc all have a prefix rule
-    // tokens starting with no valid prefix rule are syntax errors
+    // expressions starting with no valid prefix rule are syntax errors
     if (prefixRule == NULL){
         error("Expect expression.");
         return;
     }
-    // call prefix rule
-    prefixRule();
+    // call prefix rule.
+    // canAssign is passed through for variable assignment
+    bool canAssign = precedence <= PREC_ASSIGNMENT;
+    prefixRule(canAssign);
 
     // while infix rule is of higher binding power than specified, execute infix rule
     while (precedence <= getRule(parser.current.type)->precedence){
         advance();
         ParseFn infixRule = getRule(parser.previous.type)->infix;
-        infixRule();
+        infixRule(canAssign);
+    }
+
+    // error handling for invalid variable assignment
+    if (canAssign && match(TOKEN_EQUAL)){
+        error("Invalid assignment target.");
     }
 }
 

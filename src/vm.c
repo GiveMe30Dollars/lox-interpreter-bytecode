@@ -137,6 +137,16 @@ static InterpreterResult run(){
                 push(value);
                 break;
             }
+            case OP_SET_GLOBAL: {
+                Value name = READ_CONSTANT();
+                if (tableSet(&vm.globals, name, peek(0))){
+                    // isNewKey returned true. cannot set undeclared global variable.
+                    tableDelete(&vm.globals, name);
+                    runtimeError("Undefined variable '%s'.", AS_CSTRING(name));
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
+                break;
+            }
 
             case OP_EQUAL: {
                 Value b = pop();
