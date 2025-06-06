@@ -386,10 +386,10 @@ bool compile(const char* source, Chunk* chunk){
 
     // primes scanner such that current has a token
     advance();
-
-    declaration();
-
-    consume(TOKEN_EOF, "Expect end of expression.");
+    
+    while (!match(TOKEN_EOF)){
+        declaration();
+    }
     endCompiler();
 
     return !parser.hasError;

@@ -70,7 +70,7 @@ static void runtimeError(const char* format, ...){
     fputs("\n", stderr);
 
     size_t instruction = vm.ip - vm.chunk->code - 1;
-    int line = getLine(&vm.chunk->lineInfo, (int)instruction);
+    int line = getLine(vm.chunk, (int)instruction);
     fprintf(stderr, "[line %d] in script\n", line);
     resetStack();
 }
