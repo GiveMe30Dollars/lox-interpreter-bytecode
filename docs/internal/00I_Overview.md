@@ -4,9 +4,9 @@ The Lox interpreter consists of three main parts with state behaviour. State var
 
 Intermediate structures are used to pass information between the main parts, and are typically fully transparent in their structure.
 
-## The Scanner (aka: Lexer)
+## Scanning
 
-The Scanner takes in a C-string `\0`-terminated input and scans them for tokens. It is single-pass and acts as an iterator through the source string.
+Scanning takes in a C-string `\0`-terminated input and scans them for tokens. It is single-pass and acts as an iterator through the source string.
 
 ```
 // scanner.h
@@ -39,14 +39,47 @@ typedef struct {
 ```
 Note: `start` points directly into the source string. No strings are copied during scanning, and the source string survives until at least compilation completes.
 
-# Compiler
+# Compilation
 
-The compiler takes in Tokens from the Scanner and parses them using Pratt Parsing. The rules for Pratt Parsing are encoded within `parseRules`, which returns function pointers for the prefix and infix rules corresponding to a TokenType, with their precedence ranked by ascending binding power in the enum Precedence.
+Compilation takes in Tokens from the Scanner and parses them using Pratt Parsing. The rules for Pratt Parsing are encoded within `parseRules` ni `vm.c`, which returns function pointers for the prefix and infix rules corresponding to a TokenType, with their precedence ranked by ascending binding power in the enum Precedence.
 
 ```
 // compiler.h
 bool compile(const char* source, Chunk* chunk);
 ```
+
+There exists several private transient states that are destroyed upon completion of compilation:
+
+### Parser
+
+The Parser tracks the previous and current tokens parsed, as well as parsing-related behaviour flags.
+
+```
+typedef struct {
+    Token previous;
+    Token current;
+    bool hasError;
+    bool panic;
+} Parser;
+```
+
+### Compiler
+
+The Compiler acts as a mirror to the Virtual Machine's stack for resolving local scope of variables.
+
+```
+typedef struct {
+    Token name;
+    int depth;
+} Local;
+typedef struct {
+    Local locals[UINT8_COUNT];
+    int localCount;
+    int scopeDepth;
+} Compiler;
+```
+
+### Constant De-duplication
 
 # Compiler-VM Coupling
 
@@ -66,7 +99,7 @@ typedef struct {
 ```
 
 - **`count`, `capacity`**: Used to dynamically resize the Chunk during compilation.  
-- **`code`**: The bulk of the Chunk; a sequence of simple bytecode instructions, starting with an `OpCode` and optionally followed by byte operands.  
+- **`code`**: The bulk of the Chunk; a sequence of simple bytecode instructions, starting with an `Opcode` and optionally followed by byte operands.  
 - **`lineInfo`**: Stores the line information of each bytecode instruction using run-length encoding. Used for runtime errors and disassembly.  
 - **`constants`**: A dynamic array storing the constant values used in the bytecode chunk. The opcode `OP_CONSTANT` and derivatives refer to contants by index in this array.
 
@@ -103,7 +136,8 @@ To ensure de-duplication, such that strings with the same characters have identi
   `copyString()` creates a deep copy of the C-string. `takeString()` assumes that the resultant ObjString has sole ownership of the given C-string and does not copy it.
 - **`allocateString()`**: allocates and creates the ObjString on C heap space. Then, sets `vm.strings[str]` for this instance.
 
-This happens during compile-time for statically-defined strings and identifiers to optimize string comparisons.
+This happens during compile-time for statically-defined strings and identifiers to optimize string comparisons. This is also done during runtime during concatenation of strings.  
+It is possible, though not immediatly helpful, to decouple the string intern table such that the Compiler and Virtual Machine maintains one each.
 
 # Virtual Machine
 

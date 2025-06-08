@@ -48,7 +48,6 @@ static bool isFalsey(Value value){
 
 static void concatenate(){
     // concatenates two strings on the stack
-    // (does not assert type!)
     ObjString* b = AS_STRING(pop());
     ObjString* a = AS_STRING(pop());
 
@@ -80,8 +79,10 @@ static InterpreterResult run(){
 
     // Preprocessor macros for reading bytes
     #define READ_BYTE() (*vm.ip++)
+    #define READ_SHORT() (vm.ip += 2, (uint16_t)vm.ip[-2] << 8 | vm.ip[-1])
     #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
     #define READ_STRING() (AS_STRING(READ_CONSTANT()))
+    
     #define BINARY_OP(valueType, op)\
         do{ \
             if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))){ \
@@ -203,6 +204,17 @@ static InterpreterResult run(){
                 printValue(pop());
                 printf("\n");
                 break;
+
+            case OP_JUMP_IF_FALSE: {
+                uint16_t jump = READ_SHORT();
+                if (isFalsey(peek(0))) vm.ip += jump;
+                break;
+            }
+            case OP_JUMP: {
+                uint16_t jump = READ_SHORT();
+                vm.ip += jump;
+                break;
+            }
                 
             case OP_RETURN:{
                 // TODO: functions
@@ -212,6 +224,7 @@ static InterpreterResult run(){
     }
 
     #undef READ_BYTE
+    #undef READ_SHORT
     #undef READ_CONSTANT
     #undef READ_STRING
     #undef BINARY_OP

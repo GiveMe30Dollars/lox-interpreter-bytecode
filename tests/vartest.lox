@@ -1,0 +1,14 @@
+// this is a test for global and local variables, as well as global constant deduplication
+
+var a = 2;
+var b = 3;
+var a = 5;
+print (a + a + a + a + b);
+
+{
+    var a = 2;
+    var c = 3;
+    a = a + c;
+    var b = 3;
+    var d = "aaaaaa";
+}

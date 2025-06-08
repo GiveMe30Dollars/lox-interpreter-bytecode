@@ -34,8 +34,12 @@ typedef enum {
     OP_NEGATE,
 
     OP_PRINT,
+    OP_JUMP_IF_FALSE,
+    OP_JUMP,
+    OP_LOOP,
+    
     OP_RETURN
-} OpCode;
+} Opcode;
 
 typedef struct {
     int offset;

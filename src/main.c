@@ -59,10 +59,6 @@ static void runFile(const char* path){
     interpret(source);
 }
 
-#include "value.h"
-#include "object.h"
-#include "hashtable.h"
-
 int main(int argc, const char *argv[]) {
     
     initVM();
