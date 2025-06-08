@@ -120,6 +120,10 @@ static InterpreterResult run(){
             case OP_TRUE:  push(BOOL_VAL(true)); break;
             case OP_FALSE: push(BOOL_VAL(false)); break;
             case OP_POP:   pop(); break;
+            case OP_POPN: {
+                vm.stackTop -= READ_BYTE();
+                break;
+            }
 
             case OP_DEFINE_GLOBAL: {
                 Value name = READ_CONSTANT();
@@ -145,6 +149,16 @@ static InterpreterResult run(){
                     runtimeError("Undefined variable '%s'.", AS_CSTRING(name));
                     return INTERPRETER_RUNTIME_ERROR;
                 }
+                break;
+            }
+            case OP_GET_LOCAL: {
+                uint8_t idx = READ_BYTE();
+                push(vm.stack[idx]);
+                break;
+            }
+            case OP_SET_LOCAL: {
+                uint8_t idx = READ_BYTE();
+                vm.stack[idx] = peek(0);
                 break;
             }
 
