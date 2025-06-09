@@ -215,6 +215,11 @@ static InterpreterResult run(){
                 vm.ip += jump;
                 break;
             }
+            case OP_LOOP: {
+                uint16_t jump = READ_SHORT();
+                vm.ip -= jump;
+                break;
+            }
                 
             case OP_RETURN:{
                 // TODO: functions
