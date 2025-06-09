@@ -31,6 +31,11 @@ The currently implemented operation codes (opcodes) are as follows:
 
 - **`OP_NOT`**: Pops the topmost element and evaluates `!boolean`. Pushes the result onto the stack.
 - **`OP_NEGATE`**: Pops the topmost element and evaluates `- number`. Pushes the result onto the stack.
+- **`OP_UNARY_PLUS`**: Asserts the topmost element is of type `Number`. Does nothing.
 
 - **`OP_PRINT`**: Pops the topmost element and prints its value.
+- **`OP_JUMP_IF_FALSE`** `byteX2`: Moves the instruction pointer (`vm.ip`) forwards by `byteX2` bytes if the top of the stack evaluates to `false`.
+- **`OP_JUMP`** `byteX2`: Moves the instruction pointer (`vm.ip`) forwards by `byteX2` bytes.
+- **`OP_LOOP`** `byteX2`: Moves the instruction pointer (`vm.ip`) backwards by `byteX2` bytes.
+
 - **`OP_RETURN`**: Exit the VM and return `INTERPRETER_OK`.
