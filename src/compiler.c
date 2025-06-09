@@ -32,6 +32,7 @@ typedef struct {
 typedef enum {
     PREC_NONE,
     PREC_ASSIGNMENT,   // =
+    PREC_CONDITIONAL,  // ?:
     PREC_OR,           // or
     PREC_AND,          // and
     PREC_EQUALITY,     // == !=
@@ -188,7 +189,6 @@ static void patchJump(int offset){
     }
     currentChunk()->code[offset] = (jump >> 8) & 0xff;
     currentChunk()->code[offset + 1] = jump & 0xff;
-    printf("%d\n", jump);
 }
 static void emitLoop(int loopStart){
     emitByte(OP_LOOP);
@@ -279,6 +279,31 @@ static void literal(bool canAssign){
         case TOKEN_TRUE:  emitByte(OP_TRUE); break;
         case TOKEN_FALSE: emitByte(OP_FALSE); break;
         default: return;    // Unreachable
+    }
+}
+static void conditional(bool canAssign){
+    // copies the control flow of if-then-else
+    if (match(TOKEN_COLON)){
+        // Elvis operator
+        int thenJump = emitJump(OP_JUMP_IF_FALSE);
+        int elseJump = emitJump(OP_JUMP);
+        patchJump(thenJump);
+        emitByte(OP_POP);
+        parsePrecedence(PREC_CONDITIONAL);
+        patchJump(elseJump);
+    }
+    else {
+        // ternary conditional
+        int thenJump = emitJump(OP_JUMP_IF_FALSE);
+        emitByte(OP_POP);
+        parsePrecedence(PREC_CONDITIONAL);
+        int elseJump = emitJump(OP_JUMP);
+        patchJump(thenJump);
+        
+        consume(TOKEN_COLON, "Expect ':' after first branch of ternary conditional.");
+        emitByte(OP_POP);
+        parsePrecedence(PREC_CONDITIONAL);
+        patchJump(elseJump);
     }
 }
 
@@ -380,7 +405,7 @@ static void namedVariable(Token name, bool canAssign){
             default: ;    // Nothing.
         }
         if (assignInstruction != -1){
-            // arithmatic assignment operation.
+            // compound assignment operation.
             // get variable, advance past operator, evaluate expression to the right (PREC_ASSIGN)
             // apply operation and set variable to value on stack
             emitBytes(getOp, arg);
@@ -595,7 +620,10 @@ ParseRule rules[] = {
     [TOKEN_PLUS]          = {unary,    binary, PREC_TERM},
     [TOKEN_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
     [TOKEN_SLASH]         = {NULL,     binary, PREC_FACTOR},
-    [TOKEN_STAR]          = {NULL,     binary, PREC_FACTOR},
+    [TOKEN_STAR]          = {NULL,     binary, PREC_FACTOR},           // <- end of vanilla for single letter tokens
+
+    [TOKEN_QUERY]         = {NULL,     conditional, PREC_CONDITIONAL},
+    [TOKEN_COLON]         = {NULL,     NULL,        PREC_NONE},
 
     [TOKEN_BANG]          = {unary,    NULL,     PREC_NONE},
     [TOKEN_BANG_EQUAL]    = {NULL,     binary,   PREC_EQUALITY},
@@ -604,7 +632,7 @@ ParseRule rules[] = {
     [TOKEN_GREATER]       = {NULL,     binary,   PREC_COMPARISON},
     [TOKEN_GREATER_EQUAL] = {NULL,     binary,   PREC_COMPARISON},
     [TOKEN_LESS]          = {NULL,     binary,   PREC_COMPARISON},
-    [TOKEN_LESS_EQUAL]    = {NULL,     binary,   PREC_COMPARISON},
+    [TOKEN_LESS_EQUAL]    = {NULL,     binary,   PREC_COMPARISON},     // <- end of vanilla for single/double letter tokens
 
     [TOKEN_PLUS_EQUAL]    = {NULL,     NULL,   PREC_NONE},             // assignment is handled in variable.
     [TOKEN_MINUS_EQUAL]   = {NULL,     NULL,   PREC_NONE},

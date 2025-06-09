@@ -1,3 +1,7 @@
+// test for if-then-else control flow in if statemnets,
+// the ternary conditional and the Elvis operator
+// refer to documentation: 01E
+
 var a = 2;
 var b = 3;
 
@@ -13,3 +17,19 @@ if (a == b){
 
 a and b;
 a or b;
+
+var min = a < b ? a : b;    // expect: 2
+var max = a > b ? a : b;    // expect: 3
+
+// Nested ternary conditionals
+print false ? a : a > b ? a+b : a-b;        // expect: -1
+print true ? a ? a : b : a+b;               // expect: 2
+
+print a == 1 ? "one" : a == 2 ? "two" : "many";    // expect: "two"
+
+// Elvis operator
+print a ?: b;               // expect: 2
+print false ?: b;           // expect: 3
+
+// multiple-choice variable?  no, compile error!
+// (true ? a : b) = "hey there"

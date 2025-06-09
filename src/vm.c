@@ -42,8 +42,21 @@ static Value peek(int distance){
 }
 
 static bool isFalsey(Value value){
+    #ifdef IS_FALSEY_EXTENDED
+    // returns true for: false, nil, <empty>, 0, ""
+    // (an enduser should not have access to <empty>)
+    switch (value.type){
+        case VAL_NIL:    return true;
+        case VAL_BOOL:   return !AS_BOOL(value);
+        case VAL_EMPTY:  return true;
+        case VAL_NUMBER: return AS_NUMBER(value) == 0;
+        case VAL_OBJ:    return AS_STRING(value)->length == 0;
+        default:         return true;    // Unreachable.
+    }
+    #else
     // returns true for false and nil
     return (IS_NIL(value) || (IS_BOOL(value) && AS_BOOL(value) == false));
+    #endif
 }
 
 static void concatenate(){

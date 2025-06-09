@@ -194,6 +194,8 @@ Token scanToken(){
         case ';': return makeToken(TOKEN_SEMICOLON);
         case ',': return makeToken(TOKEN_COMMA);
         case '.': return makeToken(TOKEN_DOT);
+        case '?': return makeToken(TOKEN_QUERY);
+        case ':': return makeToken(TOKEN_COLON);
 
         // Single or double character tokens
         case '!':

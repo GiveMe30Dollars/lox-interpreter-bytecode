@@ -21,7 +21,7 @@ static int byteInstruction(const char* name, Chunk* chunk, int offset){
 }
 static int jumpInstruction(const char* name, int sign, Chunk* chunk, int offset){
     uint16_t jump = (uint16_t)chunk->code[offset + 1] | chunk->code[offset + 2];
-    printf("%-16s %4d -> %04d\n", name, offset, offset + 3 + (sign * jump));
+    printf("%-16s %04d -> %04d\n", name, offset, offset + 3 + (sign * jump));
     return offset + 3;
 }
 
