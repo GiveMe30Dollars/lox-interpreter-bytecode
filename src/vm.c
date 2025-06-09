@@ -197,7 +197,14 @@ static InterpreterResult run(){
                     runtimeError("Operand must be a number.");
                     return INTERPRETER_RUNTIME_ERROR;
                 }
-                push(NUMBER_VAL(-AS_NUMBER(pop())));
+                vm.stackTop[-1].as.number *= -1;
+                break;
+            case OP_UNARY_PLUS:
+                if (!IS_NUMBER(peek(0))){
+                    runtimeError("Operand must be a number.");
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
+                // Does nothing.
                 break;
             
             case OP_PRINT:

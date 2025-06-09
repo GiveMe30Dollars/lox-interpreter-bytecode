@@ -71,19 +71,20 @@ int disassembleInstruction(Chunk* chunk, int offset){
         case OP_SET_LOCAL:
             return  byteInstruction("OP_SET_LOCAL", chunk, offset);
 
-        case OP_EQUAL:     return simpleInstruction("OP_EQUAL", offset);
-        case OP_GREATER:   return simpleInstruction("OP_GREATER", offset);
-        case OP_LESS:      return simpleInstruction("OP_LESS", offset);
+        case OP_EQUAL:      return simpleInstruction("OP_EQUAL", offset);
+        case OP_GREATER:    return simpleInstruction("OP_GREATER", offset);
+        case OP_LESS:       return simpleInstruction("OP_LESS", offset);
 
-        case OP_ADD:       return simpleInstruction("OP_ADD", offset);
-        case OP_SUBTRACT:  return simpleInstruction("OP_SUBTRACT", offset);
-        case OP_MULTIPLY:  return simpleInstruction("OP_MULTIPLY", offset);
-        case OP_DIVIDE:    return simpleInstruction("OP_DIVIDE", offset);
+        case OP_ADD:        return simpleInstruction("OP_ADD", offset);
+        case OP_SUBTRACT:   return simpleInstruction("OP_SUBTRACT", offset);
+        case OP_MULTIPLY:   return simpleInstruction("OP_MULTIPLY", offset);
+        case OP_DIVIDE:     return simpleInstruction("OP_DIVIDE", offset);
 
-        case OP_NOT:       return simpleInstruction("OP_NOT", offset);
-        case OP_NEGATE:    return simpleInstruction("OP_NEGATE", offset);
+        case OP_NOT:        return simpleInstruction("OP_NOT", offset);
+        case OP_NEGATE:     return simpleInstruction("OP_NEGATE", offset);
+        case OP_UNARY_PLUS: return simpleInstruction("OP_UNARY_PLUS", offset);
 
-        case OP_PRINT:     return simpleInstruction("OP_PRINT", offset);
+        case OP_PRINT:      return simpleInstruction("OP_PRINT", offset);
 
         case OP_JUMP_IF_FALSE:
             return jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset);

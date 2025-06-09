@@ -32,6 +32,7 @@ typedef enum {
 
     OP_NOT,
     OP_NEGATE,
+    OP_UNARY_PLUS,
 
     OP_PRINT,
     OP_JUMP_IF_FALSE,

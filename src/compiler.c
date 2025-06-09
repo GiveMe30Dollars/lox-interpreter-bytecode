@@ -196,7 +196,7 @@ static void emitLoop(int loopStart){
     int offset = currentChunk()->count - loopStart + 2;
     if (offset > UINT16_MAX)
         error("Loop body too large.");
-        
+
     emitByte((offset >> 8) & 0xff);
     emitByte(offset & 0xff);
 }
@@ -250,6 +250,7 @@ static void unary(bool canAssign){
     switch(operatorType){
         case TOKEN_BANG:    emitByte(OP_NOT); break;
         case TOKEN_MINUS:   emitByte(OP_NEGATE); break;
+        case TOKEN_PLUS:    emitByte(OP_UNARY_PLUS); break;
         default: return;    // Unreachable.
     }
 }
@@ -476,6 +477,54 @@ static void whileStatement(){
     patchJump(exitJump);
     emitByte(OP_POP);
 }
+static void forStatement(){
+    // Looping variable belongs to scope of loop
+    beginScope();
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+    if (match(TOKEN_SEMICOLON)){
+        // No initializer
+    } else if (match(TOKEN_VAR)){
+        varDeclaration();
+    } else {
+        exprStatement();
+    }
+
+    int loopStart = currentChunk()->count;
+    int exitJump = -1;
+    if (match(TOKEN_SEMICOLON)){
+        // No terminating condition
+    } else {
+        expression();
+        consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
+        exitJump = emitJump(OP_JUMP_IF_FALSE);
+        emitByte(OP_POP);
+    }
+
+    int incrStart = loopStart;
+    if  (!match(TOKEN_RIGHT_PAREN)){
+        // increment clause. evaluate and pop result (treat as statement)
+        int bodyJump = emitJump(OP_JUMP);
+        incrStart = currentChunk()->count;
+        expression();
+        emitByte(OP_POP);
+
+        consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
+
+        emitLoop(loopStart);
+        patchJump(bodyJump);
+    }
+
+    statement();
+    emitLoop(incrStart);
+
+    if (exitJump != -1){
+        patchJump(exitJump);
+    }
+    // remember to pop the loop condition off the stack when exiting!
+    emitByte(OP_POP);
+
+    endScope();
+}
 
 
 static void expression(){
@@ -498,6 +547,8 @@ static void declaration(){
         ifStatement();
     } else if (match(TOKEN_WHILE)){
         whileStatement();
+    } else if (match(TOKEN_FOR)){
+        forStatement();
     } else {
         statement();
     }
@@ -513,11 +564,11 @@ ParseRule rules[] = {
   [TOKEN_COMMA]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_DOT]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_MINUS]         = {unary,    binary, PREC_TERM},
-  [TOKEN_PLUS]          = {NULL,     binary, PREC_TERM},
+  [TOKEN_PLUS]          = {unary,    binary, PREC_TERM},
   [TOKEN_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SLASH]         = {NULL,     binary, PREC_FACTOR},
   [TOKEN_STAR]          = {NULL,     binary, PREC_FACTOR},
-  [TOKEN_BANG]          = {unary,     NULL,   PREC_NONE},
+  [TOKEN_BANG]          = {unary,    NULL,   PREC_NONE},
   [TOKEN_BANG_EQUAL]    = {NULL,     binary,   PREC_EQUALITY},
   [TOKEN_EQUAL]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_EQUAL_EQUAL]   = {NULL,     binary,   PREC_EQUALITY},
@@ -525,23 +576,23 @@ ParseRule rules[] = {
   [TOKEN_GREATER_EQUAL] = {NULL,     binary,   PREC_COMPARISON},
   [TOKEN_LESS]          = {NULL,     binary,   PREC_COMPARISON},
   [TOKEN_LESS_EQUAL]    = {NULL,     binary,   PREC_COMPARISON},
-  [TOKEN_IDENTIFIER]    = {variable,     NULL,   PREC_NONE},
-  [TOKEN_STRING]        = {string,     NULL,   PREC_NONE},
+  [TOKEN_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
+  [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
   [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
   [TOKEN_AND]           = {NULL,     and_,   PREC_AND},
   [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_FALSE]         = {literal,     NULL,   PREC_NONE},
+  [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
   [TOKEN_FOR]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_FUN]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_NIL]           = {literal,     NULL,   PREC_NONE},
+  [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
   [TOKEN_OR]            = {NULL,     or_,   PREC_OR},
   [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_THIS]          = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_TRUE]          = {literal,     NULL,   PREC_NONE},
+  [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
   [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
