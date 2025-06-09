@@ -194,10 +194,6 @@ Token scanToken(){
         case ';': return makeToken(TOKEN_SEMICOLON);
         case ',': return makeToken(TOKEN_COMMA);
         case '.': return makeToken(TOKEN_DOT);
-        case '+': return makeToken(TOKEN_PLUS);
-        case '-': return makeToken(TOKEN_MINUS);
-        case '*': return makeToken(TOKEN_STAR);
-        case '/': return makeToken(TOKEN_SLASH);
 
         // Single or double character tokens
         case '!':
@@ -208,6 +204,15 @@ Token scanToken(){
             return makeToken(match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
         case '<':
             return makeToken(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
+        
+        case '+':
+            return makeToken(match('=') ? TOKEN_PLUS_EQUAL : TOKEN_PLUS);
+        case '-':
+            return makeToken(match('=') ? TOKEN_MINUS_EQUAL : TOKEN_MINUS);
+        case '*':
+            return makeToken(match('=') ? TOKEN_STAR_EQUAL : TOKEN_STAR);
+        case '/':
+            return makeToken(match('=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH);
 
         // String literal
         case '"': return scanString();
