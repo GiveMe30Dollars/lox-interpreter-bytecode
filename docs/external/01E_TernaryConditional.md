@@ -9,7 +9,7 @@ As this implementation of Lox is soon to add other ternary operators and even qu
 ### Semantics
 
 > The detailed semantics of "the" ternary operator as well as its syntax differs significantly from language to language.  
-<div style="text-align: right"><i>- Egregious understatement, [Wikipedia](https://en.wikipedia.org/wiki/Ternary_conditional_operator).</i></div>
+* - Egregious understatement, [Wikipedia](https://en.wikipedia.org/wiki/Ternary_conditional_operator).*
 <br>
 Most languages agree on the following:
 
