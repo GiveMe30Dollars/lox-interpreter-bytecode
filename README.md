@@ -3,8 +3,7 @@
 This is an ongoing C implemetation of the Lox interpreter as described in the second half of the book:  
 - **"Crafting Interpreters"**: https://craftinginterpreters.com/ by Robert Nystrom.
 
-Sister project to the AST-based Lox Interpreter:
-- https://github.com/GiveMe30Dollars/lox-interpreter-ast
+Sister project to the AST-based Lox Interpreter: https://github.com/GiveMe30Dollars/lox-interpreter-ast
 
 While the code is written in C, it is forwards-compatible with the C++ compiler and may be compiled as a C++ project.
 
