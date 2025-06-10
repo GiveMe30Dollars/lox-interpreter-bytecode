@@ -12,5 +12,5 @@ print (end - start);
 
 // The following is a general benchmark on the performance of the interpreter.
 // For fib(30) == 832040,
-// the AST-based implemetation took ~90 seconds
-// the bytecode implemetation took 0.689 seconds
+// the AST-based implemetation took ~100 seconds
+// the bytecode implemetation took ~0.7 seconds without DEBUG_TRACE_EXECUTION

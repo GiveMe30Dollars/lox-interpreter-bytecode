@@ -1,0 +1,6 @@
+fun a(n){
+    print n;
+}
+
+print a;
+print a("yeah!");
