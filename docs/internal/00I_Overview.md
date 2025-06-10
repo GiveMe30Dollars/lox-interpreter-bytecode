@@ -103,7 +103,23 @@ typedef struct {
 - **`lineInfo`**: Stores the line information of each bytecode instruction using run-length encoding. Used for runtime errors and disassembly.  
 - **`constants`**: A dynamic array storing the constant values used in the bytecode chunk. The opcode `OP_CONSTANT` and derivatives refer to contants by index in this array.
 
-Additionally, some runtime representations of Lox are written directly into the VM during the compilation process.
+### Lox Functions
+
+Chunks are encapsulated in Lox functions, which are created at compile-time and passed to the VM:
+
+```
+// object.h
+typedef struct{
+    Obj obj;
+    int arity;
+    Chunk chunk;
+    ObjString* name;
+} ObjFunction;
+```
+
+- **`obj`**: Every Lox object has one of these in their headers. This allows for quick upcasting and downcasting between its specialized pointer and the general `Obj*` pointer, which is what is stored in a Lox `Value`.
+- **`arity`**: The number of arguments this Lox object expects. Top-level code expects 0 arguments.
+- **`name`**: The variable name this Lox object is bound to.
 
 ### String Intern Table
 
@@ -144,19 +160,30 @@ It is possible, though not immediatly helpful, to decouple the string intern tab
 The Lox Virtual Machine executes stack-based bytecode in Chunk.
 
 ```
-// vm.h
 typedef struct {
-    Chunk* chunk;
+    ObjFunction* function;
     uint8_t* ip;
+    Value* slots;
+} CallFrame;
+
+typedef struct {
+    CallFrame frames[FRAMES_MAX];
+    int frameCount;
     Value stack[STACK_MAX];
     Value* stackTop;
+    HashTable globals;
     HashTable strings;
     Obj* objects;
 } VM;
+
+extern VM vm;
+
 InterpreterResult interpret(const char* source);
 ```
 
-**`ip`**: The instruction pointer into the bytecode in `chunk`.  
-**`stack[]`, `stackTop`**: Static-size stack for evaluation and execution of code.  
-**`strings`**: string intern table. see above.  
-**`objects`**: a linked list of all Objects allocated during compile-time and runtime.  
+- **`stack`**: `stackTop` and all `frames[i].ip` point into this stack.
+- **`objects`**: Linked list of all Lox objects allocated during compile-time and runtime.
+- **`strings`**: Aformentioned string intern table.
+- **`globals`**: Stores the key-pair entries of global variables.
+
+A CallFrame is created every time a function is called. When a function returns, the call frame is discarded. If the call frame of the top-level code has finished execution and is discarded, exit the VM.
