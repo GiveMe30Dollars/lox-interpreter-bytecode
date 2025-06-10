@@ -27,9 +27,11 @@ typedef enum {
     TYPE_FUNCTION
 } FunctionType;
 
-typedef struct {
+typedef struct Compiler {
     FunctionType type;
     ObjFunction* function;
+
+    struct Compiler* enclosing;
 
     Local locals[UINT8_COUNT];
     int localCount;
@@ -110,6 +112,12 @@ static void error(const char* message){
 // PARSER HELPER FUNCTIONS
 static void advance(){
     parser.previous = parser.current;
+
+    // if (parser.previous.type == TOKEN_EOF)
+    //     printf("Advanced: Token-EOF\n");
+    // else
+    //     printf("Advanced: Token-%.*s\n", parser.previous.length, parser.previous.start);
+
     for (;;){
         parser.current = scanToken();
         if (parser.current.type != TOKEN_ERROR) break;
@@ -179,6 +187,7 @@ static void emitConstant(Value value){
     emitBytes(OP_CONSTANT, makeConstant(value));
 }
 static void emitReturn(){
+    emitByte(OP_NIL);
     emitByte(OP_RETURN);
 }
 static int emitJump(uint8_t instruction){
@@ -219,7 +228,13 @@ static void initCompiler(Compiler* compiler, FunctionType type){
     initTable(&compiler->existingConstants);
 
     // set this as current compiler
+    compiler->enclosing = current;
     current = compiler;
+
+    // if this is a function or class, get name from parser
+    if (type != TYPE_SCRIPT){
+        current->function->name = copyString(parser.previous.start, parser.previous.length);
+    }
 
     // claim slot 0 of call stack for self
     Local* local = &current->locals[current->localCount++];
@@ -234,10 +249,13 @@ static ObjFunction* endCompiler(){
 
     // clean up allocated compiler temporaries
     freeTable(&current->existingConstants);
+
+    // restores enclosing compiler
+    current = current->enclosing;
     
     #ifdef DEBUG_PRINT_CODE
     if (!parser.hasError){
-        disassembleChunk(currentChunk(), (function->name != NULL ? function->name->chars : "<script>"));
+        disassembleChunk(&function->chunk, (function->name != NULL ? function->name->chars : "<script>"));
     }
     #endif
 
@@ -356,6 +374,8 @@ static void addLocal(Token name){
     local->depth = -1;
 }
 static void markInitialized(){
+    // specific to local variables
+    if (current->scopeDepth == 0) return;
     current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 static int resolveLocal(Compiler* compiler, Token* name){
@@ -376,6 +396,7 @@ static int resolveLocal(Compiler* compiler, Token* name){
 
 static void declareVariable(){
     // specific to local variables
+    // asserts no existing variable in this scope has the same name, then adds to locals
     if (current->scopeDepth == 0) return;
     Token* name = &parser.previous;
     for (int i = current->localCount - 1; i >= 0; i--){
@@ -391,7 +412,8 @@ static void declareVariable(){
     addLocal(*name);
 }
 static void defineVariable(uint8_t global){
-    // local variables are on the stack. no definition required
+    // specific to global variables
+    // local variables are on the stack. mark slot as initialized
     if (current->scopeDepth > 0){
         markInitialized();
         return;
@@ -399,11 +421,16 @@ static void defineVariable(uint8_t global){
     emitBytes(OP_DEFINE_GLOBAL, global);
 }
 static uint8_t parseVariable(const char* errorMessage){
+    // parses the variable name, then:
+    // global scope: returns the constant idx to the variable name
+    // local scope: declares the variable name in the Compiler locals struct
     consume(TOKEN_IDENTIFIER, errorMessage);
     declareVariable();
     if (current->scopeDepth > 0) return 0;
     return identifierConstant(&parser.previous);
 }
+
+
 static void namedVariable(Token name, bool canAssign){
     uint8_t getOp, setOp;
     int arg = resolveLocal(current, &name);
@@ -457,6 +484,29 @@ static void variable(bool canAssign){
     namedVariable(parser.previous, canAssign);
 }
 
+static uint8_t argumentList(){
+    // Evaluates all arguments to be on the stack.
+    // LEFT_PAREN already consumed
+    uint8_t argCount = 0;
+    if (!check(TOKEN_RIGHT_PAREN)){
+        do {
+            expression();
+            if (argCount == 255){
+                // About to overflow to 256 arguments
+                error("Cannot have more than 255 arguments.");
+            }
+            argCount++;
+        } while (match(TOKEN_COMMA));
+    }
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+    return argCount;
+}
+static void call(bool canAssign){
+    uint8_t argCount = argumentList();
+    emitBytes(OP_CALL, argCount);
+}
+
+
 static void and_(bool canAssign){
     int endJump = emitJump(OP_JUMP_IF_FALSE);
     emitByte(OP_POP);
@@ -489,6 +539,7 @@ static void varDeclaration(){
     consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
     defineVariable(global);
 }
+
 static void printStatement(){
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
@@ -499,6 +550,7 @@ static void exprStatement(){
     consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
     emitByte(OP_POP);
 }
+
 
 static void beginScope(){
     current->scopeDepth++;
@@ -523,6 +575,8 @@ static void block(){
         declaration();
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
+
+
 static void ifStatement(){
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
     expression();
@@ -609,12 +663,68 @@ static void forStatement(){
 }
 
 
+static void function(FunctionType type){
+    Compiler compiler;
+    initCompiler(&compiler, TYPE_FUNCTION);
+
+    // All parameters go into block scope.
+    beginScope();
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+    if (!check(TOKEN_RIGHT_PAREN)){
+        do {
+            current->function->arity++;
+            if (current->function->arity > 255){
+                error("Cannot have more than 255 parameters.");
+            }
+            uint8_t constant = parseVariable("Expect parameter name.");
+            defineVariable(constant);
+        } while (match(TOKEN_COMMA));
+    }
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+
+    consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
+    block();
+
+    ObjFunction* function = endCompiler();
+    emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+}
+static void functionDeclaration(){
+    uint8_t global = parseVariable("Expect function name.");
+    markInitialized();
+    function(TYPE_FUNCTION);
+    defineVariable(global);
+}
+static void returnStatement(){
+    // disallow return statement from top-level code
+    // (internally, we exit the VM by emitting OP_RETURN at EOF)
+    if (current->type == TYPE_SCRIPT){
+        error("Cannot return from top-level code.");
+    }
+
+    if (match(TOKEN_SEMICOLON)){
+        emitReturn();
+    } else {
+        expression();
+        consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+        emitByte(OP_RETURN);
+    }
+}
+
+
 static void expression(){
     parsePrecedence(PREC_ASSIGNMENT);
 }
 static void statement(){
     if (match(TOKEN_PRINT)){
         printStatement();
+    } else if (match(TOKEN_RETURN)){
+        returnStatement();
+    } else if (match(TOKEN_IF)){
+        ifStatement();
+    } else if (match(TOKEN_WHILE)){
+        whileStatement();
+    } else if (match(TOKEN_FOR)){
+        forStatement();
     } else if (match(TOKEN_LEFT_BRACE)){
         beginScope();
         block();
@@ -623,14 +733,10 @@ static void statement(){
     else exprStatement();
 }
 static void declaration(){
-    if (match(TOKEN_VAR)){
+    if (match(TOKEN_FUN)){
+        functionDeclaration();
+    } else if (match(TOKEN_VAR)){
         varDeclaration();
-    } else if (match(TOKEN_IF)){
-        ifStatement();
-    } else if (match(TOKEN_WHILE)){
-        whileStatement();
-    } else if (match(TOKEN_FOR)){
-        forStatement();
     } else {
         statement();
     }
@@ -639,7 +745,7 @@ static void declaration(){
 
 // ParseRule table for Pratt Parsing
 ParseRule rules[] = {
-    [TOKEN_LEFT_PAREN]    = {grouping, NULL,   PREC_NONE},
+    [TOKEN_LEFT_PAREN]    = {grouping, call,   PREC_CALL},
     [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
     [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE}, 
     [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},

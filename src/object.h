@@ -10,7 +10,8 @@
 // Relating to Obj and its derived structs
 typedef enum {
     OBJ_STRING,
-    OBJ_FUNCTION
+    OBJ_FUNCTION,
+    OBJ_NATIVE
 } ObjType;
 
 struct Obj{
@@ -38,13 +39,22 @@ ObjString* takeString(char* start, int length);
 
 
 // ObjFunctions are created during compile time
-struct ObjFunction{
+typedef struct{
     Obj obj;
     int arity;
     Chunk chunk;
     ObjString* name;
-};
+} ObjFunction;
 ObjFunction* newFunction();
+
+// ObjNatives are distinct from ObjFunctions
+typedef Value (*NativeFn)(int argCount, Value* args);
+typedef struct {
+    Obj obj;
+    int arity;
+    NativeFn function;
+} ObjNative;
+ObjNative* newNative(NativeFn function);
 
 
 // OBJECT GENERAL FUNCTIONS
@@ -54,6 +64,7 @@ void printObject(Value value);
 // TYPE CHECK MACROS / INLINE FUNCTIONS
 #define IS_STRING(value)   (isObjType(value, OBJ_STRING))
 #define IS_FUNCTION(value) (isObjType(value, OBJ_FUNCTION))
+#define IS_NATIVE(value) (isObjType(value, OBJ_NATIVE))
 
 static inline bool isObjType(Value value, ObjType type){
     return IS_OBJ(value) && (AS_OBJ(value)->type == type);
@@ -64,5 +75,6 @@ static inline bool isObjType(Value value, ObjType type){
 #define AS_STRING(value)   ((ObjString*)AS_OBJ(value))
 #define AS_CSTRING(value)  (((ObjString*)AS_OBJ(value))->chars)
 #define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
+#define AS_NATIVE(value) (((ObjNative*)AS_OBJ(value))->function)
 
 #endif

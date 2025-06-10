@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
 
 #include "vm.h"
 #include "common.h"
@@ -13,6 +14,22 @@
 // global variable
 VM vm;
 
+// native function parsing
+static void defineNative(const char* name, NativeFn function){
+    // push onto stack to ensure they survive if GC triggered by reallocation of hash table
+    push(OBJ_VAL(copyString(name, (int)strlen(name))));
+    push(OBJ_VAL(newNative(function)));
+    tableSet(&vm.globals, vm.stack[0], vm.stack[1]);
+    pop();
+    pop();
+}
+
+// native functions
+static Value clockNative(int argCount, Value* args){
+    return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
+
+
 // INITIALIZE/FREE VM
 static void resetStack(){
     vm.stackTop = vm.stack;
@@ -23,6 +40,8 @@ void initVM(){
     initTable(&vm.globals);
     initTable(&vm.strings);
     vm.objects = NULL;
+
+    defineNative("clock", clockNative);
 }
 void freeVM(){
     freeTable(&vm.globals);
@@ -76,20 +95,69 @@ static void concatenate(){
 }
 
 static void runtimeError(const char* format, ...){
+    // printf-style message to stderr
     va_list args;
     va_start(args, format);
     vfprintf(stderr, format, args);
     va_end(args);
     fputs("\n", stderr);
 
-    CallFrame* frame = &vm.frames[vm.frameCount - 1];
+    // Stack trace
+    for (int i = vm.frameCount - 1; i >= 0; i--){
+        CallFrame* frame = &vm.frames[i];
+        ObjFunction* function = frame->function;
+        size_t instruction = frame->ip - function->chunk.code - 1;
 
-    size_t instruction = (frame->ip - frame->function->chunk.code - 1);
-    int line = getLine(&frame->function->chunk, (int)instruction);
-    fprintf(stderr, "[line %d] in script", line);
-    printf("\n");
+        fprintf(stderr, "[line %d] in ", getLine(&function->chunk, instruction));
+        if (function->name == NULL){
+            fprintf(stderr, "<script>\n");
+        } else {
+            fprintf(stderr, "%s\n", function->name->chars);
+        }
+    }
 
     resetStack();
+}
+
+
+static bool call(ObjFunction* function, int argCount){
+    // attempts to write new call frame to VM
+    
+    // fail if arity not the same
+    if (function->arity != argCount){
+        runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
+        return false;
+    }
+    // stack overflow fail
+    if (vm.frameCount == FRAMES_MAX){
+        runtimeError("Stack overflow.");
+        return false;
+    }
+    // success; create new call frame
+    CallFrame* frame = &vm.frames[vm.frameCount++];
+    frame->function = function;
+    frame->ip = function->chunk.code;
+    frame->slots = vm.stackTop - argCount - 1;
+    return true;
+}
+static bool callValue(Value callee, int argCount){
+    // returns false if call failed
+    if (IS_OBJ(callee)){
+        switch(OBJ_TYPE(callee)){
+            case OBJ_FUNCTION: 
+                return call(AS_FUNCTION(callee), argCount);
+            case OBJ_NATIVE: {
+                NativeFn native = AS_NATIVE(callee);
+                Value result = native(argCount, vm.stackTop - argCount);
+                vm.stackTop -= (argCount + 1);
+                push(result);
+                return true;
+            }
+            default: ;    // Fallthrough to failure case
+        }
+    }
+    runtimeError("Can only call functions and classes.");
+    return false;
 }
 
 
@@ -252,10 +320,29 @@ static InterpreterResult run(){
                 frame->ip -= jump;
                 break;
             }
-                
+            
+            case OP_CALL: {
+                int argCount = READ_BYTE();
+                if (!callValue(peek(argCount), argCount)){
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
+                // new call frame on stack
+                frame = &vm.frames[vm.frameCount - 1];
+                break;
+            }
             case OP_RETURN:{
-                // TODO: functions
-                return INTERPRETER_OK;
+                Value result = pop();
+                vm.frameCount--;
+                if (vm.frameCount == 0){
+                    pop();
+                    return INTERPRETER_OK;
+                }
+                // discard call frame, restore universal variables (stack top)
+                // then push result
+                vm.stackTop = frame->slots;
+                push(result);
+                frame = &vm.frames[vm.frameCount - 1];
+                break;
             }
         }
     }
@@ -272,10 +359,7 @@ InterpreterResult interpret(const char* source){
         return INTERPRETER_COMPILE_ERROR;
 
     // push top-level call frame onto stack
-    CallFrame* frame = &vm.frames[vm.frameCount++];
-    frame->function = topLevelCode;
-    frame->ip = topLevelCode->chunk.code;
-    frame->slots = vm.stack;
+    call(topLevelCode, 0);
 
     return run();
 }

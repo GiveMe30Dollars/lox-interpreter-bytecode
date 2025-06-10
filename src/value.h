@@ -3,11 +3,10 @@
 
 #include "common.h"
 
-// forward declaration of object.h related structs
+// forward declaration of Obj and ObjString
 // is defined in object.h
 typedef struct Obj Obj;
 typedef struct ObjString ObjString;
-typedef struct ObjFunction ObjFunction;
 
 
 // Representation of Lox values:

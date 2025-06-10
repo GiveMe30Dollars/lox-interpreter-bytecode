@@ -39,6 +39,7 @@ typedef enum {
     OP_JUMP,
     OP_LOOP,
     
+    OP_CALL,
     OP_RETURN
 } Opcode;
 
@@ -62,6 +63,6 @@ void freeChunk(Chunk* chunk);
 
 void writeChunk(Chunk* chunk, uint8_t byte, int line);
 int addConstant(Chunk* chunk, Value value);
-int getLine(Chunk* chunk, int offset);
+int getLine(Chunk* chunk, size_t offset);
 
 #endif

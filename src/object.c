@@ -74,6 +74,14 @@ ObjFunction* newFunction(){
     return function;
 }
 
+// OBJFUNCTION METHODS
+
+ObjNative* newNative(NativeFn function){
+    ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
+    native->function = function;
+    return native;
+}
+
 
 // OBJECT GENERAL METHODS
 
@@ -89,7 +97,9 @@ void printObject(Value value){
         case OBJ_STRING:
             printf("%s", AS_CSTRING(value)); break;
         case OBJ_FUNCTION:
-            printFunction(AS_FUNCTION(value));
+            printFunction(AS_FUNCTION(value)); break;
+        case OBJ_NATIVE:
+            printf("<native fn>"); break;
         default: break;    // Unreachable.
     }
 }

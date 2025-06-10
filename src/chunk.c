@@ -49,7 +49,7 @@ int addConstant(Chunk* chunk, Value value){
     writeValueArray(&chunk->constants, value);
     return chunk->constants.count - 1;
 }
-int getLine(Chunk* chunk, int instruction){
+int getLine(Chunk* chunk, size_t instruction){
     int start = 0;
     int end = chunk->lineCount - 1;
     // binary search (start, end inclusive)
