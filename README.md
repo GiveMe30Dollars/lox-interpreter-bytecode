@@ -10,7 +10,7 @@ While the code is written in C, it is forwards-compatible with the C++ compiler 
 
 Initialized 1st June 2025.
 
-Current status: Implemeted global and local variables, control flow.  
+**Current status:** Implemented global and local variables, control flow.  
 Additionally added ternary conditional (+ Elvis operator), compound assignment operators.
 
 ## Usage  
