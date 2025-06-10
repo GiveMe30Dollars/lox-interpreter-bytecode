@@ -8,7 +8,11 @@ Sister project to the AST-based Lox Interpreter:
 
 While the code is written in C, it is forwards-compatible with the C++ compiler and may be compiled as a C++ project.
 
-Initialized 1st June 2025.
+### Timeline
+
+1st June 2025: Initialized.
+
+11 June 2025: Milestone achieved! This Lox implementation can now run the recursive Fibonacci function.
 
 For further information, check the [documentation](docs).
 
