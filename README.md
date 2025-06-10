@@ -10,9 +10,13 @@ While the code is written in C, it is forwards-compatible with the C++ compiler 
 
 Initialized 1st June 2025.
 
+Current status: Implemeted global and local variables, control flow.  
+Additionally added ternary conditional (+ Elvis operator), compound assignment operators.
+
 ## Usage  
 Run from Git Bash (or any command-line interface that executes .sh files):  
-  - `./lox.sh [command-line arguments]...`
+  - `./lox.sh`: opens in REPL mode.
+  - `./lox.sh [path]`: opens the plaintext file at `path` and executes it as a Lox program.
     
 This will compile and run the project as executable `main.exe`.  
 
