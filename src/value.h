@@ -7,6 +7,7 @@
 // is defined in object.h
 typedef struct Obj Obj;
 typedef struct ObjString ObjString;
+typedef struct ObjFunction ObjFunction;
 
 
 // Representation of Lox values:

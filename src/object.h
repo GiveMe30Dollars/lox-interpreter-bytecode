@@ -2,6 +2,7 @@
 #define clox_object_h
 
 #include "common.h"
+#include "chunk.h"
 #include "value.h"
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
@@ -9,6 +10,7 @@
 // Relating to Obj and its derived structs
 typedef enum {
     OBJ_STRING,
+    OBJ_FUNCTION
 } ObjType;
 
 struct Obj{
@@ -35,11 +37,23 @@ ObjString* copyString(const char* start, int length);
 ObjString* takeString(char* start, int length);
 
 
+// ObjFunctions are created during compile time
+struct ObjFunction{
+    Obj obj;
+    int arity;
+    Chunk chunk;
+    ObjString* name;
+};
+ObjFunction* newFunction();
+
+
 // OBJECT GENERAL FUNCTIONS
+void printFunction(ObjFunction* function);
 void printObject(Value value);
 
 // TYPE CHECK MACROS / INLINE FUNCTIONS
-#define IS_STRING(value) (isObjType(value, OBJ_STRING))
+#define IS_STRING(value)   (isObjType(value, OBJ_STRING))
+#define IS_FUNCTION(value) (isObjType(value, OBJ_FUNCTION))
 
 static inline bool isObjType(Value value, ObjType type){
     return IS_OBJ(value) && (AS_OBJ(value)->type == type);
@@ -47,7 +61,8 @@ static inline bool isObjType(Value value, ObjType type){
 
 // CAST MACROS
 // (does not assert type!)
-#define AS_STRING(value) ((ObjString*)AS_OBJ(value))
-#define AS_CSTRING(value) (((ObjString*)AS_OBJ(value))->chars)
+#define AS_STRING(value)   ((ObjString*)AS_OBJ(value))
+#define AS_CSTRING(value)  (((ObjString*)AS_OBJ(value))->chars)
+#define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
 
 #endif

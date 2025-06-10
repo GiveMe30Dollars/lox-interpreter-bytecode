@@ -16,6 +16,7 @@ VM vm;
 // INITIALIZE/FREE VM
 static void resetStack(){
     vm.stackTop = vm.stack;
+    vm.frameCount = 0;
 }
 void initVM(){
     resetStack();
@@ -81,19 +82,29 @@ static void runtimeError(const char* format, ...){
     va_end(args);
     fputs("\n", stderr);
 
-    size_t instruction = vm.ip - vm.chunk->code - 1;
-    int line = getLine(vm.chunk, (int)instruction);
-    fprintf(stderr, "[line %d] in script\n", line);
+    CallFrame* frame = &vm.frames[vm.frameCount - 1];
+
+    size_t instruction = (frame->ip - frame->function->chunk.code - 1);
+    int line = getLine(&frame->function->chunk, (int)instruction);
+    fprintf(stderr, "[line %d] in script", line);
+    printf("\n");
+
     resetStack();
 }
 
 
 static InterpreterResult run(){
 
+    // Get current call frame (of <script>)
+    CallFrame* frame = &vm.frames[vm.frameCount - 1];
+
+    // Store instruction pointer as native CPU register (TODO)
+    // register uint8_t* ip
+
     // Preprocessor macros for reading bytes
-    #define READ_BYTE() (*vm.ip++)
-    #define READ_SHORT() (vm.ip += 2, (uint16_t)vm.ip[-2] << 8 | vm.ip[-1])
-    #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+    #define READ_BYTE() (*frame->ip++)
+    #define READ_SHORT() (frame->ip += 2, (uint16_t)frame->ip[-2] << 8 | frame->ip[-1])
+    #define READ_CONSTANT() (frame->function->chunk.constants.values[READ_BYTE()])
     #define READ_STRING() (AS_STRING(READ_CONSTANT()))
     
     #define BINARY_OP(valueType, op)\
@@ -118,7 +129,8 @@ static InterpreterResult run(){
             printf(" ]");
         }
         printf("\n");
-        disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
+        disassembleInstruction(&frame->function->chunk, 
+            (int)(frame->ip - frame->function->chunk.code));
         #endif
 
         // excecute instruction
@@ -166,13 +178,13 @@ static InterpreterResult run(){
                 break;
             }
             case OP_GET_LOCAL: {
-                uint8_t idx = READ_BYTE();
-                push(vm.stack[idx]);
+                uint8_t slot = READ_BYTE();
+                push(frame->slots[slot]);
                 break;
             }
             case OP_SET_LOCAL: {
-                uint8_t idx = READ_BYTE();
-                vm.stack[idx] = peek(0);
+                uint8_t slot = READ_BYTE();
+                frame->slots[slot] = peek(0);
                 break;
             }
 
@@ -227,17 +239,17 @@ static InterpreterResult run(){
 
             case OP_JUMP_IF_FALSE: {
                 uint16_t jump = READ_SHORT();
-                if (isFalsey(peek(0))) vm.ip += jump;
+                if (isFalsey(peek(0))) frame->ip += jump;
                 break;
             }
             case OP_JUMP: {
                 uint16_t jump = READ_SHORT();
-                vm.ip += jump;
+                frame->ip += jump;
                 break;
             }
             case OP_LOOP: {
                 uint16_t jump = READ_SHORT();
-                vm.ip -= jump;
+                frame->ip -= jump;
                 break;
             }
                 
@@ -255,18 +267,15 @@ static InterpreterResult run(){
     #undef BINARY_OP
 }
 InterpreterResult interpret(const char* source){
-    Chunk chunk;
-    initChunk(&chunk);
-    if(!compile(source, &chunk)){
-        freeChunk(&chunk);
+    ObjFunction* topLevelCode = compile(source);
+    if (topLevelCode == NULL)
         return INTERPRETER_COMPILE_ERROR;
-    }
 
-    vm.chunk = &chunk;
-    vm.ip = vm.chunk->code;
-    InterpreterResult result = run();
+    // push top-level call frame onto stack
+    CallFrame* frame = &vm.frames[vm.frameCount++];
+    frame->function = topLevelCode;
+    frame->ip = topLevelCode->chunk.code;
+    frame->slots = vm.stack;
 
-    freeChunk(&chunk);
-
-    return INTERPRETER_OK;
+    return run();
 }

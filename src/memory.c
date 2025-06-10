@@ -23,6 +23,12 @@ void freeObject(Obj* object){
             FREE(ObjString, string);
             break;
         }
+        case OBJ_FUNCTION: {
+            ObjFunction* function = (ObjFunction*)object;
+            freeChunk(&function->chunk);
+            FREE(ObjFunction, function);
+            break;
+        }
     }
 }
 void freeObjects(){

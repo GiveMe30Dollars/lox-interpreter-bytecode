@@ -16,10 +16,10 @@ void printValue(Value value){
             printf("%g", AS_NUMBER(value));
             break;
         }
-        case VAL_OBJ:
-            printObject(value); break;
         case VAL_EMPTY:
             printf("<empty>"); break;
+        case VAL_OBJ:
+            printObject(value); break;
 
         default: return;    // Unreachable.
     }

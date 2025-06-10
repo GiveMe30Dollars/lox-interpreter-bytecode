@@ -22,10 +22,20 @@ typedef struct {
     Token name;
     int depth;
 } Local;
+typedef enum {
+    TYPE_SCRIPT,
+    TYPE_FUNCTION
+} FunctionType;
+
 typedef struct {
+    FunctionType type;
+    ObjFunction* function;
+
     Local locals[UINT8_COUNT];
     int localCount;
     int scopeDepth;
+
+    HashTable existingConstants;
 } Compiler;
 
 
@@ -60,11 +70,9 @@ typedef struct {
 // global variables
 Parser parser;
 Compiler* current;
-HashTable* existingConstants;
-Chunk* compilingChunk;
 
 static Chunk* currentChunk(){
-    return compilingChunk;
+    return &current->function->chunk;
 }
 
 
@@ -156,7 +164,7 @@ static uint8_t makeConstant(Value value){
     // stores the value in the current chunk's constants array, returns its index as a byte
     // if identifier already exists, return that instead
     Value idx;
-    if (tableGet(existingConstants, value, &idx))
+    if (tableGet(&current->existingConstants, value, &idx))
         return (uint8_t)AS_NUMBER(idx);
     
     int constant = addConstant(currentChunk(), value);
@@ -164,7 +172,7 @@ static uint8_t makeConstant(Value value){
         error("Too many constants in one chunk.");
         return 0;
     }
-    tableSet(existingConstants, value, NUMBER_VAL(constant));
+    tableSet(&current->existingConstants, value, NUMBER_VAL(constant));
     return (uint8_t)constant;
 }
 static void emitConstant(Value value){
@@ -201,19 +209,41 @@ static void emitLoop(int loopStart){
     emitByte(offset & 0xff);
 }
 
-static void initCompiler(Compiler* compiler){
+
+// Compiler constructor/destructor
+static void initCompiler(Compiler* compiler, FunctionType type){
     compiler->localCount = 0;
     compiler->scopeDepth = 0;
+    compiler->function = newFunction();
+    compiler->type = type;
+    initTable(&compiler->existingConstants);
+
+    // set this as current compiler
     current = compiler;
+
+    // claim slot 0 of call stack for self
+    Local* local = &current->locals[current->localCount++];
+    local->depth = 0;
+    local->name.start = "";
+    local->name.length = 0;
 }
-static void endCompiler(){
+static ObjFunction* endCompiler(){
+    // emit final byte, extract ObjFunction*
     emitReturn();
+    ObjFunction* function = current->function;
+
+    // clean up allocated compiler temporaries
+    freeTable(&current->existingConstants);
+    
     #ifdef DEBUG_PRINT_CODE
     if (!parser.hasError){
-        disassembleChunk(currentChunk(), "code");
+        disassembleChunk(currentChunk(), (function->name != NULL ? function->name->chars : "<script>"));
     }
     #endif
+
+    return function;
 }
+
 
 // FORWARD DECLARATION OF PRATT-PARSER RELATED FUNCTIONS
 static void expression();
@@ -702,19 +732,17 @@ static void parsePrecedence(Precedence precedence){
 
 // PUBLIC FUNCTIONS
 
-bool compile(const char* source, Chunk* chunk){
+ObjFunction* compile(const char* source){
     initScanner(source);
+
+    // initialize parser
     parser.hasError = false;
     parser.panic = false;
 
+
+    // initialize compiler
     Compiler compiler;
-    initCompiler(&compiler);
-
-    compilingChunk = chunk;
-
-    HashTable table;
-    initTable(&table);
-    existingConstants = &table;
+    initCompiler(&compiler, TYPE_SCRIPT);
 
     // primes scanner such that current has a token
     advance();
@@ -723,8 +751,6 @@ bool compile(const char* source, Chunk* chunk){
         declaration();
     }
 
-    endCompiler();
-    freeTable(&table);
-
-    return !parser.hasError;
+    ObjFunction* function = endCompiler();
+    return !parser.hasError ? function : NULL;
 }
