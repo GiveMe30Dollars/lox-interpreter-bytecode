@@ -8,13 +8,14 @@ Sister project to the AST-based Lox Interpreter:
 
 While the code is written in C, it is forwards-compatible with the C++ compiler and may be compiled as a C++ project.
 
+For further information, check the [documentation](docs).
+
 ### Timeline
 
 1st June 2025: Initialized.
 
-11 June 2025: Milestone achieved! This Lox implementation can now run the recursive Fibonacci function.
-
-For further information, check the [documentation](docs).
+11 June 2025: Milestone achieved! This Lox implementation can now run the recursive Fibonacci function.  
+![ASTvsBytecode](https://github.com/user-attachments/assets/5e172e18-70e8-4ae0-b999-658f90d3c559)
 
 **Current status:** Implemented global and local variables, control flow.  
 Additionally added ternary conditional (+ Elvis operator), compound assignment operators.
