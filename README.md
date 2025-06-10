@@ -15,7 +15,9 @@ For further information, check the [documentation](docs).
 1st June 2025: Initialized.
 
 11 June 2025: Milestone achieved! This Lox implementation can now run the recursive Fibonacci function.  
+<p align="center">
 ![ASTvsBytecode](https://github.com/user-attachments/assets/5e172e18-70e8-4ae0-b999-658f90d3c559)
+</p>
 
 **Current status:** Implemented global and local variables, control flow.  
 Additionally added ternary conditional (+ Elvis operator), compound assignment operators.
