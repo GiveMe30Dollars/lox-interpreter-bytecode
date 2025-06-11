@@ -11,7 +11,7 @@ print "We are now out of the twilight zone.";
 
 /*/
 print "Malformed weirdness is parsed as /*";
-print "Did you know THAT above is an extra nest? Should it be like that?";
+print "Did you know THAT above is an extra nest?";
 */*/
 
 print "Second exit.";

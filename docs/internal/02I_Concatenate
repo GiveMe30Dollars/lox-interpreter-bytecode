@@ -1,0 +1,7 @@
+Honestly im not even gonna format this for the meantime because im somewhat unsatisfied with what i came up with
+
+Everything up until `OP_CONCATENATE` was rock-solid. Then there's this.
+
+I think my main grievance is that `OP_CONCATENATE` is basically a native function call. I could've written it as a native function, in fact. The stack is perfectly set up for that, and i can emit the `OP_GET_GLOBAL` for concatenation well before i parse anything. Hell, the way i set up arity checking gives me the option to implement it as a variadic function!
+
+Also as soon as I get classes and sentinel classes up and running `OP_UNARY_PLUS` is also going.
