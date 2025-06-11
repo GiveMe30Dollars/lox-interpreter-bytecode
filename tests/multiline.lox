@@ -1,0 +1,25 @@
+print "This is scanned.";
+
+// print "This is not scanned.";
+
+/*
+print "We now enter the twilight zone.";
+print "Nothing here should be scanned and compiled.";    /* Nested comment */
+*/
+
+print "We are now out of the twilight zone.";
+
+/*/
+print "Malformed weirdness is parsed as /*";
+print "Did you know THAT above is an extra nest? Should it be like that?";
+*/*/
+
+print "Second exit.";
+
+print "Anything within strings doesn't count: /* */";
+// Unless they're commented out, in which case they are no longer strings.
+
+// */   //<- This should throw a compile error
+
+// /*
+// No closing pair is also a compile error.

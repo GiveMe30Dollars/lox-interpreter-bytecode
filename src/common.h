@@ -11,9 +11,9 @@
 
 // VM FLAGS (can enable/disable)
 
-// #define DEBUG_TRACE_EXECUTION
+#define DEBUG_TRACE_EXECUTION
 #define DEBUG_PRINT_CODE
 
-#define IS_FALSEY_EXTENDED
+// #define IS_FALSEY_EXTENDED
 
 #endif

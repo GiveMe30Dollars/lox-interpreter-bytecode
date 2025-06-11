@@ -4,12 +4,22 @@
 #include "scanner.h"
 #include "common.h"
 
+#define NESTING_MAX UINT8_MAX
+
 // PRIVATE FUNCTIONS
 
 typedef struct {
     const char* start;
     const char* curr;
     int line;
+
+    // to differentiate between string interpolation ${ and {
+    // string interpolation is represented as true.
+    // bitshifting shenanigans inbound.
+    uint32_t braces;
+    uint8_t braceIdx;
+
+    bool unterminatedMultiline;
 } Scanner;
 
 Scanner scanner;
@@ -63,6 +73,7 @@ static Token errorToken(const char* message){
 }
 
 static void skipWhitespace(){
+    if (isAtEnd()) return;
     for (;;){
         char c = peek();
         switch(c){
@@ -80,6 +91,33 @@ static void skipWhitespace(){
                 if (peekNext() == '/'){
                     while (peek() != '\n' && !isAtEnd()) advance();
                 }
+                else if (peekNext() == '*'){
+                    // multiline comment
+                    // increment scanner.line for newline, escape all other characters
+                    // treat as nesting structure until matching */ found for each one opened
+                    advance();
+                    advance();
+                    int nestingComments = 1;
+                    while (nestingComments > 0){
+                        if (isAtEnd()){
+                            scanner.unterminatedMultiline = true;
+                            return;
+                        }
+                        if (peek() == '\n'){
+                            scanner.line++;
+                            advance();
+                        } else if (peek() == '/' && peekNext() == '*'){
+                            nestingComments++;
+                            advance();
+                            advance();
+                        } else if (peek() == '*' && peekNext() == '/'){
+                            nestingComments--;
+                            advance();
+                            advance();
+                        } else advance();
+                    }
+                    break;
+                }
                 else {
                     // TOKEN_SLASH found, not comment. return
                     return;
@@ -94,14 +132,32 @@ static void skipWhitespace(){
 static Token scanString(){
     while (peek() != '"' && !isAtEnd()){
         if (peek() == '\n') scanner.line++;
+        if (peek() == '$' && peekNext() == '{'){
+            // string interpolation segment
+            // update braces array, create interpolation token, consume delimiters
+            // the rest of the string is scanned when '}' is found
+            if (scanner.braceIdx == UINT8_MAX){
+                return errorToken("Cannot exceed 256 nested braces.");
+            }
+            
+            // Set bit at this idx to 1, increment braceIdx
+            scanner.braces |= (1 << scanner.braceIdx++);
+
+            Token token = makeToken(TOKEN_INTERPOLATION);
+            scanner.curr += 2;
+            scanner.start = scanner.curr;
+            return token;
+        }
         advance();
     }
     if (isAtEnd()) return errorToken("Unterminated string.");
 
-    // advance past the closing quote
+    Token token = makeToken(TOKEN_STRING);
+    // consume closing quote, do not include
     advance();
+    scanner.start = scanner.curr;
 
-    return makeToken(TOKEN_STRING);
+    return token;
 }
 static Token scanNumber(){
     // get all digits
@@ -172,11 +228,17 @@ void initScanner(const char* source){
     scanner.start = source;
     scanner.curr = source;
     scanner.line = 1;
+
+    scanner.braces = 0;
+    scanner.braceIdx = 0;
+    scanner.unterminatedMultiline = false;
 }
 
 Token scanToken(){
     skipWhitespace();
     scanner.start = scanner.curr;
+    if (scanner.unterminatedMultiline) 
+        return errorToken("Unterminated multiline comment.");
     if (isAtEnd()) return makeToken(TOKEN_EOF);
 
     char c = advance();
@@ -189,8 +251,30 @@ Token scanToken(){
         // single-character tokens
         case '(': return makeToken(TOKEN_LEFT_PAREN);
         case ')': return makeToken(TOKEN_RIGHT_PAREN);
-        case '{': return makeToken(TOKEN_LEFT_BRACE);
-        case '}': return makeToken(TOKEN_RIGHT_BRACE);
+        case '{': {
+            if (scanner.braceIdx == UINT8_MAX){
+                return errorToken("Exceeded 256 nested braces.");
+            }
+            // increment without setting any bits ( { corresponds to false/0 )
+            scanner.braceIdx++;
+            return makeToken(TOKEN_LEFT_BRACE);
+        }
+        case '}': {
+            if (scanner.braceIdx == 0){
+                return errorToken("Unmatched '}'.");
+            }
+            // decrement, get bit at this idx
+            bool isInterpolation = scanner.braces & (1 << (--scanner.braceIdx));
+            if (isInterpolation){
+                // continuation of string. consume the brace '}', continue scanning string
+                scanner.start = scanner.curr;
+                
+                // flip bit back to 0.
+                scanner.braces ^= (1 << scanner.braceIdx);
+                return scanString();
+            }
+            else return makeToken(TOKEN_RIGHT_BRACE);
+        }
         case ';': return makeToken(TOKEN_SEMICOLON);
         case ',': return makeToken(TOKEN_COMMA);
         case '.': return makeToken(TOKEN_DOT);
@@ -216,8 +300,12 @@ Token scanToken(){
         case '/':
             return makeToken(match('=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH);
 
-        // String literal
-        case '"': return scanString();
+        // String literal and/or string interpolation
+        case '"': {
+            // consume starting "
+            scanner.start = scanner.curr;
+            return scanString();
+        }
 
         default:
             return errorToken("Unidenfied character.");

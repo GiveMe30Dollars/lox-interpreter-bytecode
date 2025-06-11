@@ -1,0 +1,25 @@
+// this is to test the native function string()
+// as a precursor to string interpolations
+
+string(nil);
+string(true);
+string(false);
+
+fun lambda(n){
+    return n *= -1;
+}
+string("recur?");
+string(lambda);
+string(lambda(20));
+
+var num1 = 30;
+var num2 = 3000000000000000000000;
+
+string(num1);
+string(num2);
+string(1);
+string(0);
+string(30);
+string(0.0000000000001);
+
+string(num1 + num2 / 1000000000000 + 2/3);

@@ -53,8 +53,9 @@ typedef struct {
     Obj obj;
     int arity;
     NativeFn function;
+    ObjString* name;
 } ObjNative;
-ObjNative* newNative(NativeFn function);
+ObjNative* newNative(NativeFn function, int arity, ObjString* name);
 
 
 // OBJECT GENERAL FUNCTIONS
@@ -72,9 +73,10 @@ static inline bool isObjType(Value value, ObjType type){
 
 // CAST MACROS
 // (does not assert type!)
-#define AS_STRING(value)   ((ObjString*)AS_OBJ(value))
-#define AS_CSTRING(value)  (((ObjString*)AS_OBJ(value))->chars)
-#define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
-#define AS_NATIVE(value) (((ObjNative*)AS_OBJ(value))->function)
+#define AS_STRING(value)     ((ObjString*)AS_OBJ(value))
+#define AS_CSTRING(value)    (((ObjString*)AS_OBJ(value))->chars)
+#define AS_FUNCTION(value)   ((ObjFunction*)AS_OBJ(value))
+#define AS_NATIVE(value)     ((ObjNative*)AS_OBJ(value))
+#define AS_RAW_NATIVE(value) (((ObjNative*)AS_OBJ(value))->function)
 
 #endif

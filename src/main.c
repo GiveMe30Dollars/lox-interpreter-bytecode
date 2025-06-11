@@ -23,7 +23,6 @@ static void repl(){
             continue;
         }
         interpret(line);
-        printf("STRING INTERN TABLE: %d\n", vm.strings.count);
     }
 }
 static char* readFile(const char* path){
@@ -59,6 +58,8 @@ static void runFile(const char* path){
     interpret(source);
 }
 
+#include "scanner.h"
+
 int main(int argc, const char *argv[]) {
     
     initVM();
@@ -69,8 +70,18 @@ int main(int argc, const char *argv[]) {
         runFile(argv[1]);
     } else {
         fprintf(stderr, "Usage: ./lox.sh [path]\n");
+        fprintf(stderr, "    |  ./lox.sh       \n");
         exit(1);
     }
+    
+    // printf("STRING INTERN TABLE: %d\n", vm.strings.count);
+    // for (int i = 0; i < vm.strings.capacity; i++){
+    //     Entry* entry = &vm.strings.entries[i];
+    //     if (IS_EMPTY(entry->key)) continue;
+    //     printf(" | ");
+    //     printValue(entry->key);
+    //     printf("\n");
+    // }
 
     freeVM();
 

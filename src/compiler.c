@@ -112,12 +112,6 @@ static void error(const char* message){
 // PARSER HELPER FUNCTIONS
 static void advance(){
     parser.previous = parser.current;
-
-    // if (parser.previous.type == TOKEN_EOF)
-    //     printf("Advanced: Token-EOF\n");
-    // else
-    //     printf("Advanced: Token-%.*s\n", parser.previous.length, parser.previous.start);
-
     for (;;){
         parser.current = scanToken();
         if (parser.current.type != TOKEN_ERROR) break;
@@ -278,9 +272,9 @@ static void number(bool canAssign){
     emitConstant(NUMBER_VAL(value));
 }
 static void string(bool canAssign){
-    // strip quotation marks in call to copyString()
+    // quotation marks are already stripped (changed after string interpolation added)
     // (copyString() because there is no guarantee that the source string survives past compilation)
-    emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
+    emitConstant(OBJ_VAL(copyString(parser.previous.start, parser.previous.length)));
 }
 static void grouping(bool canAssign){
     expression();
@@ -505,6 +499,39 @@ static void call(bool canAssign){
     uint8_t argCount = argumentList();
     emitBytes(OP_CALL, argCount);
 }
+
+
+static void interpolation(bool canAssign){
+    // String interpolation handling
+
+    // Get the index to "string" constant (required to call native function)
+    uint8_t idx = makeConstant(OBJ_VAL(copyString("string", 6)));
+
+    int joinOperand = 0;
+    do {
+        // pass the TOKEN_INTERPOLATION to be parsed as a string
+        string(canAssign);
+
+        // get the Lox stringcast native function, evaluate the expression, and call it
+        emitBytes(OP_GET_GLOBAL, idx);
+        expression();
+        emitBytes(OP_CALL, 1);
+
+        // increment joinOperand
+        if (joinOperand > UINT8_MAX - 2){
+            error("Cannot exceed 128 chained string interpolations.");
+        }
+        joinOperand += 2;
+    } while (match(TOKEN_INTERPOLATION));
+
+    // parse ending string
+    advance();
+    string(canAssign);
+    joinOperand++;
+
+    emitBytes(OP_CONCATENATE, (uint8_t)joinOperand);
+}
+
 
 
 static void and_(bool canAssign){
@@ -770,15 +797,16 @@ ParseRule rules[] = {
     [TOKEN_LESS]          = {NULL,     binary,   PREC_COMPARISON},
     [TOKEN_LESS_EQUAL]    = {NULL,     binary,   PREC_COMPARISON},     // <- end of vanilla for single/double letter tokens
 
-    [TOKEN_PLUS_EQUAL]    = {NULL,     NULL,   PREC_NONE},             // assignment is handled in variable.
+    [TOKEN_PLUS_EQUAL]    = {NULL,     NULL,   PREC_NONE},             // assignment is handled in variable()
     [TOKEN_MINUS_EQUAL]   = {NULL,     NULL,   PREC_NONE},
     [TOKEN_STAR_EQUAL]    = {NULL,     NULL,   PREC_NONE},
     [TOKEN_SLASH_EQUAL]   = {NULL,     NULL,   PREC_NONE},
 
     [TOKEN_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
     [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
-    [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
+    [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},             // <- end of vanilla
 
+    [TOKEN_INTERPOLATION] = {interpolation, NULL,   PREC_NONE},
 
     [TOKEN_AND]           = {NULL,     and_,   PREC_AND},
     [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},

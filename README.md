@@ -14,6 +14,7 @@ For further information, check the [documentation](docs).
 1st June 2025: Initialized.
 
 11 June 2025: Milestone achieved! This Lox implementation can now run the recursive Fibonacci function.  
+  Speed of execution is 150x improved compared to the AST-based interpreter.
 <p align="center">
 <img src=https://github.com/user-attachments/assets/5e172e18-70e8-4ae0-b999-658f90d3c559 />
 </p>

@@ -1,0 +1,42 @@
+// This is a test for string interpolation in Lox
+
+var str = "normal";
+
+var isInterpolated = true;
+var interp = "Interpolation is ${isInterpolated}!";
+print "Interp: ${interp}";                                       // Expect: Interp: Interpolation is true!
+
+{
+    var pi = 3.1415;
+    print "The value of pi is ${pi}.";                           // Expect: The value of pi is 3.1415.
+    print "The dollar sign $ can still be displayed.";           // Expect: The dollat sign $ can still be displayed.
+}
+
+print "Nested ${ "interpolations? Are you ${"mad?"} Yes!" }";    // Expect: Nested interpolations? Are you mad? Yes!
+
+var a = "first";
+var b = "second";
+print "Chained ${a} and ${b} interpolations!";                   // Expect: Chained first and second interpolations!
+print "Chained ${a} and ${ "mixed up ${b}" } interpolations!";   // Expect: Chained first and mixed up second interpolations!
+
+var c = "compatible with";
+print "Interpolations are ${c} " + "default concatenation.";     // Expect: Interpolations are compatible with default concatenation.
+
+
+fun fac(n){
+    if (n <= 2) return n;
+    return fac(n - 1)  * n;
+}
+
+{
+    var a = 0;
+    print "The 3rd factorial is ${a = fac(3)}.";                 // Expect: The 3rd factorial is 6.
+    print "The value is cached: ${a}";                           // Expect: The value is cached: 6
+}
+
+print "Function names are plaintext: ${fac}";                    // Expect: Function names are plaintext: fac
+print "You can format them as: <fn ${fac}>";                     // Expect: You can format them as: <fn fac>
+
+// Don't mind me just daisychaining interpolations
+print "Daisychaining: ${a} + ${b} + ${c} + ${str} + ${isInterpolated}";  
+// Expect: Daisychaining: first + second + compatible with + normal + true

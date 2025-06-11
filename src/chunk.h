@@ -38,6 +38,8 @@ typedef enum {
     OP_JUMP_IF_FALSE,
     OP_JUMP,
     OP_LOOP,
+
+    OP_CONCATENATE,
     
     OP_CALL,
     OP_RETURN

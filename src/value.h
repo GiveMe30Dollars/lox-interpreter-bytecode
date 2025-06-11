@@ -35,7 +35,7 @@ typedef struct {
 #define NIL_VAL()          ((Value){VAL_NIL, {.number = 0}})
 #define NUMBER_VAL(value)  ((Value){VAL_NUMBER, {.number = value}})
 #define OBJ_VAL(value)     ((Value){VAL_OBJ, {.obj = (Obj*)value}})
-#define EMPTY_VAL(value)   ((Value){VAL_EMPTY, {.number = 0}})
+#define EMPTY_VAL()        ((Value){VAL_EMPTY, {.number = 0}})
 // (The explicit cast suppresses some compilation warnings)
 
 // TYPE CHECK MACROS

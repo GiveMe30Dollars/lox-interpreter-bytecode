@@ -8,6 +8,7 @@
 #include "compiler.h"
 #include "debug.h"
 #include "memory.h"
+#include "native.h"
 #include "object.h"
 #include "value.h"
 
@@ -15,20 +16,14 @@
 VM vm;
 
 // native function parsing
-static void defineNative(const char* name, NativeFn function){
+static void defineNative(const char* name, NativeFn function, int arity){
     // push onto stack to ensure they survive if GC triggered by reallocation of hash table
     push(OBJ_VAL(copyString(name, (int)strlen(name))));
-    push(OBJ_VAL(newNative(function)));
+    push(OBJ_VAL( newNative(function, arity, AS_STRING(vm.stack[0])) ));
     tableSet(&vm.globals, vm.stack[0], vm.stack[1]);
     pop();
     pop();
 }
-
-// native functions
-static Value clockNative(int argCount, Value* args){
-    return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
-}
-
 
 // INITIALIZE/FREE VM
 static void resetStack(){
@@ -41,7 +36,10 @@ void initVM(){
     initTable(&vm.strings);
     vm.objects = NULL;
 
-    defineNative("clock", clockNative);
+    for (int i = 0; i < importCount; i++){
+        ImportNative* native = &importLibrary[i];
+        defineNative(native->name, native->function, native->arity);
+    }
 }
 void freeVM(){
     freeTable(&vm.globals);
@@ -79,7 +77,7 @@ static bool isFalsey(Value value){
     #endif
 }
 
-static void concatenate(){
+static void concatenateTwo(){
     // concatenates two strings on the stack
     ObjString* b = AS_STRING(pop());
     ObjString* a = AS_STRING(pop());
@@ -91,6 +89,25 @@ static void concatenate(){
     chars[length] = '\0';
 
     ObjString* result = takeString(chars, length);
+    push(OBJ_VAL(result));
+}
+static void concatenate(int argCount){
+    // Concatenates any number of strings on the stack, up to UINT8_MAX
+    int length = 0;
+    for (int i = argCount - 1; i >= 0; i--)
+        length += AS_STRING(peek(i))->length;
+    
+    char* chars = ALLOCATE(char, length + 1);
+    int offset = 0;
+    for (int i = argCount - 1; i >= 0; i--){
+        ObjString* str = AS_STRING(peek(i));
+        memcpy(chars + offset, str->chars, str->length);
+        offset += str->length;
+    }
+    chars[length] = '\0';
+
+    ObjString* result = takeString(chars, length);
+    vm.stackTop -= argCount;
     push(OBJ_VAL(result));
 }
 
@@ -120,7 +137,7 @@ static void runtimeError(const char* format, ...){
 }
 
 
-static bool call(ObjFunction* function, int argCount){
+static bool callFunction(ObjFunction* function, int argCount){
     // attempts to write new call frame to VM
 
     // fail if arity not the same
@@ -140,18 +157,25 @@ static bool call(ObjFunction* function, int argCount){
     frame->slots = vm.stackTop - argCount - 1;
     return true;
 }
+static bool callNative(ObjNative* native, int argCount){
+    // arity fail
+    if (native->arity >= 0 && native->arity != argCount){
+        runtimeError("Expected %d arguments but got %d.", native->arity, argCount);
+        return false;
+    }
+    Value result = (native->function)(argCount, vm.stackTop - argCount);
+    vm.stackTop -= (argCount + 1);
+    push(result);
+    return true;
+}
 static bool callValue(Value callee, int argCount){
     // returns false if call failed
     if (IS_OBJ(callee)){
         switch(OBJ_TYPE(callee)){
             case OBJ_FUNCTION: 
-                return call(AS_FUNCTION(callee), argCount);
+                return callFunction(AS_FUNCTION(callee), argCount);
             case OBJ_NATIVE: {
-                NativeFn native = AS_NATIVE(callee);
-                Value result = native(argCount, vm.stackTop - argCount);
-                vm.stackTop -= (argCount + 1);
-                push(result);
-                return true;
+                return callNative(AS_NATIVE(callee), argCount);
             }
             default: ;    // Fallthrough to failure case
         }
@@ -270,7 +294,7 @@ static InterpreterResult run(){
 
             case OP_ADD: {
                 if (IS_STRING(peek(0)) && IS_STRING(peek(1))){
-                    concatenate();
+                    concatenateTwo();
                 } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
                     double b = AS_NUMBER(pop());
                     double a = AS_NUMBER(pop());
@@ -326,6 +350,12 @@ static InterpreterResult run(){
                 ip -= jump;
                 break;
             }
+
+            case OP_CONCATENATE: {
+                int argCount = READ_BYTE();
+                concatenate(argCount);
+                break;
+            }
             
             case OP_CALL: {
                 // put current register into frame->ip
@@ -370,7 +400,7 @@ InterpreterResult interpret(const char* source){
         return INTERPRETER_COMPILE_ERROR;
 
     // push top-level call frame onto stack
-    call(topLevelCode, 0);
+    callFunction(topLevelCode, 0);
 
     return run();
 }
