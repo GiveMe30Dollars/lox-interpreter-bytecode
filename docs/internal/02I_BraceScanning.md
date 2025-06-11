@@ -1,4 +1,4 @@
-# 02I: Brace Scanning and Parsing
+# 02I: Brace Scanning and Parsing for String Interpolation
 
 ## Scanning
 
