@@ -38,7 +38,5 @@ The currently implemented operation codes (opcodes) are as follows:
 - **`OP_JUMP`** `byteX2`: Moves the instruction pointer (`vm.ip`) forwards by `byteX2` bytes.
 - **`OP_LOOP`** `byteX2`: Moves the instruction pointer (`vm.ip`) backwards by `byteX2` bytes.
 
-- **`OP_CONCATENATE`** `argc`: Concatenates `argc` strings at the top of the stack, from bottom to top. Pops arguments and pushes the result to the stack
-
 - **`OP_CALL`** `argc`: The stack is arranged such that there exists a `function` object, followed by `argc` arguments, at the top of the stack. Call `function` by pushing a new CallFrame onto the call stack for these values.
 - **`OP_RETURN`**: Pops the call stack and returns the topmost element in the popped frame. Exit the VM and return `INTERPRETER_OK` if the popped frame is executed top-level code.
