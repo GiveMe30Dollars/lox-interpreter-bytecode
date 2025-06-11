@@ -504,32 +504,36 @@ static void call(bool canAssign){
 static void interpolation(bool canAssign){
     // String interpolation handling
 
-    // Get the index to "string" constant (required to call native function)
-    uint8_t idx = makeConstant(OBJ_VAL(copyString("string", 6)));
+    // Get the index to "string" and "concatenate" constant (required to call native function)
+    uint8_t idxS = makeConstant(OBJ_VAL(copyString("string", 6)));
+    uint8_t idxC = makeConstant(OBJ_VAL(copyString("concatenate", 11)));
 
-    int joinOperand = 0;
+    // get concatenate native function onto stack
+    emitBytes(OP_GET_GLOBAL, idxC);
+
+    int argCount = 0;
     do {
         // pass the TOKEN_INTERPOLATION to be parsed as a string
         string(canAssign);
 
         // get the Lox stringcast native function, evaluate the expression, and call it
-        emitBytes(OP_GET_GLOBAL, idx);
+        emitBytes(OP_GET_GLOBAL, idxS);
         expression();
         emitBytes(OP_CALL, 1);
 
-        // increment joinOperand
-        if (joinOperand > UINT8_MAX - 2){
+        // increment argCount
+        if (argCount > UINT8_MAX - 2){
             error("Cannot exceed 128 chained string interpolations.");
         }
-        joinOperand += 2;
+        argCount += 2;
     } while (match(TOKEN_INTERPOLATION));
 
     // parse ending string
     advance();
     string(canAssign);
-    joinOperand++;
+    argCount++;
 
-    emitBytes(OP_CONCATENATE, (uint8_t)joinOperand);
+    emitBytes(OP_CALL, (uint8_t)argCount);
 }
 
 

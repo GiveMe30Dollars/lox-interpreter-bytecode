@@ -91,25 +91,6 @@ static void concatenateTwo(){
     ObjString* result = takeString(chars, length);
     push(OBJ_VAL(result));
 }
-static void concatenate(int argCount){
-    // Concatenates any number of strings on the stack, up to UINT8_MAX
-    int length = 0;
-    for (int i = argCount - 1; i >= 0; i--)
-        length += AS_STRING(peek(i))->length;
-    
-    char* chars = ALLOCATE(char, length + 1);
-    int offset = 0;
-    for (int i = argCount - 1; i >= 0; i--){
-        ObjString* str = AS_STRING(peek(i));
-        memcpy(chars + offset, str->chars, str->length);
-        offset += str->length;
-    }
-    chars[length] = '\0';
-
-    ObjString* result = takeString(chars, length);
-    vm.stackTop -= argCount;
-    push(OBJ_VAL(result));
-}
 
 static void runtimeError(const char* format, ...){
     // printf-style message to stderr
@@ -348,12 +329,6 @@ static InterpreterResult run(){
             case OP_LOOP: {
                 uint16_t jump = READ_SHORT();
                 ip -= jump;
-                break;
-            }
-
-            case OP_CONCATENATE: {
-                int argCount = READ_BYTE();
-                concatenate(argCount);
                 break;
             }
             

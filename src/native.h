@@ -16,5 +16,6 @@ extern size_t importCount;
 
 Value clockNative(int argCount, Value* args);
 Value stringNative(int argCount, Value* args);
+Value concatenateNative(int argCount, Value* args);
 
 #endif
