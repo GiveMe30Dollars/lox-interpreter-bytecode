@@ -15,22 +15,17 @@ Most languages agree on the following:
 
 - Ternary conditionals short-circuit.
   - `false ? func1() : func2()` will never call `func1()`. Only one of the branches is executed at any time.
-
 - *Generally*, ternary conditionals permit side effects (function calls etc.).
   - This is generally true for most languages in use today, though early procedural languages tend to disallow side effects.
-
 - *Generally*, ternary conditionals are right-associative.
   - PHP notably (and notoriously) doesn't. `a == 1 ? "one" : a == 2 ? "two" : "many"` is evaluated as `(a == 1 ? "one" : a == 2) ? "two" : "many"`, which most agree is unintuitive.
-
 - *Generally*, ternary conditionals have low binding power, second lowest to assignment (and compound assignment).
   - C++, unlike its predecessor C, has ternary conditionals have the same binding power as assignment.
-
 - *Generally*, ternary conditionals only return rvalues.
   - C++, unlike C or C#, allows ternary conditionals to return lvalues.
     - Hence, `(cond ? a : b) = value` compiles in C++ and not C or C#.  
     The only other language (to my knowledge) that could return lvalues from ternary conditionals is JavaScript.  
     *Aside: idk man shits weird*
-
 - *Generally*, nested ternary conditionals are evaluated starting from the outermost expression, proceeding inwards.
   - If the opposite were true (nested conditionals are evaluated starting from the innermost expression spreading outwards), then  
   `bool b = false;  int c = b ? 10 : (true ? (b = true) : 0);` evaluates to `10` instead of `true -> 1`.
