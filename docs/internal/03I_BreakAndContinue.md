@@ -94,7 +94,7 @@ It'd look something a bit like this:
 +----------+-------+-------+-------+-------+------ - -
                                               |
                                               |
-                                               stackTop
+                                              stackTop
 ```
 
 Before we jump out of the while loop, we need to "clean house" and pop off local variables a, b and c. Otherwise, they'll just *stay* on the stack, wreaking havoc whenever we try doing *anything* with local variables afterwards. This is true for both `break` and `continue`.
@@ -151,3 +151,15 @@ The function emitPrejumpPops does just that:
 *Aaaaaaand That's It Folks!*
 
 ## Closing Thoughts
+
+This was one of the more challenging features I added to Lox. Before this, I did simple parsing changes for compound assignment and the ternary conditional. I apparently didn't get the memo when r/ProgrammingLanguages said "yeah it's just `goto`s" and I assumed because of that it's *easy*.
+
+Granted, it *is* simpler than dreaming up the `ObjFunction*`-`Chunk` coupling. I had no idea how Nystrom (or his predecessors, more likely) came up with that. I *definitely* wouldn't have came up with that and happily stuck to AST parsing had I not read Crafting Interpreters.
+
+What's next for challenge? Switch-case jump tables? Tail-call optimization? Writing something resembling an STL??
+
+If you somehow made it through *this* and are still reading me type nonsense: read [Crafting Interpreters](https://craftinginterpreters.com/). It's completely free online, and if there's only a single book you'll ever read on programming languages, make it this. It makes a lot of things about languages make so much more sense when you understand how they're built.
+
+I'm not editing this page again. I've spent as much time here as I did writing and testing the code that I'm now soapboxing about. Well worth it.
+
+Signing off, 13 June 2025.
