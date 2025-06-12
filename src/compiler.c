@@ -307,7 +307,6 @@ static void emitPrejumpPops(){
             pops++;
         } else break;
     }
-
     switch (pops){
         case 0: break;     // Emit nothing
         case 1: emitByte(OP_POP); break;
