@@ -181,7 +181,7 @@ extern VM vm;
 InterpreterResult interpret(const char* source);
 ```
 
-- **`stack`**: `stackTop` and all `frames[i].ip` point into this stack.
+- **`stack`**: `stackTop` and all `frames[i].slots` point into this stack.
 - **`objects`**: Linked list of all Lox objects allocated during compile-time and runtime.
 - **`strings`**: Aformentioned string intern table.
 - **`globals`**: Stores the key-pair entries of global variables.
