@@ -36,7 +36,7 @@ In order:
 - `loopDepth`: the scope depth where the loop is made. This information becomes important later.
 - `enclosing`: the enclosing loop. if this is the first loop, enclosing is `NULL`.
 - `endpatches`: the dynamic array of chunk code offsets referring to an `OP_JUMP` instruction that is to be backpatched to the end of the loop.  
-  *Aside: You'd be right to question whether stuffing a `size_t` (or an `int` for that matter) into a `double` would cause any conversion inaccuracies, since there is no Value representation for integers. IEEE-754 does specify the number of mantissa (read: non-exponent) bits of a double to be 52, well over the 32 bits an `int` would have. This still feels a bit unclean to me though.*  
+  *Aside: You'd be right to question whether stuffing a `size_t` (or an `int` for that matter) into a `double` would cause any conversion inaccuracies, since there is no Value representation for integers. I had such doubts myself. However, IEEE-754 does specify the number of mantissa (read: non-exponent) bits of a double to be 52, well over the 32 bits an `int` would have.*  
   *Get back to me when there are [4,294,967,296](https://cplusplus.com/reference/cstdint/) bytes in that bytecode chunk. I'll wait.*
 
 Like `Compiler`, LoopInfo "instances" are never dynamically allocated. They are created in the functions `whileStatement` and `forStatement` as local structs, and we are done with them by the time those functions return. Everything else takes a pointer to them.
@@ -120,21 +120,21 @@ The function emitPrejumpPops does just that:
   - Emit the corresponding opcodes for popping the loop local variables off the stack:
     - 0: Emit nothing.
     - 1: Emit `OP_POP`.
-    - 2 or more: Emit `OP_POPN`, followed by a byte operand `2 - 255`.
+    - 2 or more: Emit `OP_POPN`, followed by a byte operand `2 - 255`.  
       *Aside:* this is fine since we can't have more than 255 local variables without overflowing the stack anyways.
 
 ## Putting It All Together
 
 - In `whileStatement()`, 
   - Declare and initialize a new LoopInfo struct, before compiling the expression conditional.  
-    You can do this any time before the body statement is compiled as long as you record `loopStart` to be here. I did so to make it clear that *the conditional is the loop start*. Any continues statements jump to the evaluation of the conditional.
-  - After all the bytecode relating to `while` has been emitted, call endLoopInfo.  
+    You can do this any time before the body statement is compiled as long as you record `loopStart` to be here. I did so to make it clear that *the conditional is the loop start*. Any continue statements jump to the evaluation of the conditional.
+  - After all the bytecode relating to `while` has been emitted, call `endLoopInfo()`.  
     The conditional is popped either before execution of the body statement or just after the loop is exited. If we're breaking from the while loop, there is no extra conditional on the stack. We should skip past the tail `OP_POP`.
 
 - In `forStatement()`,
   - Declare and initialize a new LoopInfo struct *after* compiling the increment statement.  
     This is necessary. When we `continue` from a for loop, we want to go to the increment statement (if any) first before returning to conditional evaluation.
-  - We call endLoopInfo before the opcode for popping the iteration variable is emitted. Any breaks should go here so that the for loop can clean up after itself.
+  - We call `endLoopInfo()` before the opcode for popping the iteration variable is emitted. Any breaks should go here so that the for loop can clean up after itself.
 
 - Create new statement function `breakStatement()`:
   - If there is no existing loop, throw an error.
