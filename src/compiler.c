@@ -18,6 +18,7 @@ typedef struct {
     bool panic;
 } Parser;
 
+
 typedef struct {
     Token name;
     int depth;
@@ -27,9 +28,26 @@ typedef enum {
     TYPE_FUNCTION
 } FunctionType;
 
+// For break and continue:
+// A loop needs to keep track of its starting position for continue
+// and all the indexes for jump operations to backpatch for break
+// this includes the for condition (if exists)
+// LoopInfo owns its endpatches array.
+// It is never dynamically allocated, and instead created whenever a loop is created
+// and deleted (out of scope) once the loop finishes compiling
+typedef struct LoopInfo {
+    int loopStart;
+    int loopDepth;
+    struct LoopInfo* enclosing;
+    ValueArray endpatches;
+} LoopInfo;
+
+
 typedef struct Compiler {
     FunctionType type;
     ObjFunction* function;
+    
+    LoopInfo* loop;
 
     struct Compiler* enclosing;
 
@@ -220,6 +238,7 @@ static void initCompiler(Compiler* compiler, FunctionType type){
     compiler->function = newFunction();
     compiler->type = type;
     initTable(&compiler->existingConstants);
+    compiler->loop = NULL;
 
     // set this as current compiler
     compiler->enclosing = current;
@@ -254,6 +273,48 @@ static ObjFunction* endCompiler(){
     #endif
 
     return function;
+}
+
+static void initLoopInfo(LoopInfo* loopInfo, int loopStart){
+    initValueArray(&loopInfo->endpatches);
+    loopInfo->loopStart = loopStart;
+    loopInfo->loopDepth = current->scopeDepth;
+    loopInfo->enclosing = current->loop;
+    // set this as current loop
+    current->loop = loopInfo;
+}
+static void endLoopInfo(){
+    // backpatch all recorded jumps to end of loop
+    ValueArray* array = &current->loop->endpatches;
+    for (int i = 0; i < array->count; i++){
+        patchJump((int)AS_NUMBER(array->values[i]));
+    }
+    // free associated temporaries
+    freeValueArray(&current->loop->endpatches);
+    // restore enclosing loopInfo
+    current->loop = current->loop->enclosing;
+}
+static void addEndpatch(int offset){
+    // adds a jump instruction at this offset to be patched to the end of this loop
+    writeValueArray(&current->loop->endpatches, NUMBER_VAL(offset));
+}
+static void emitPrejumpPops(){
+    // iterates through locals (does not affect it!), emits pops for values within the loop
+    // (scope depth higher but not including depth at which loop is created)
+    int pops = 0;
+    for (int i = current->localCount - 1; i >= 0; i--){
+        if (current->locals[i].depth > current->loop->loopDepth){
+            pops++;
+        } else break;
+    }
+
+    switch (pops){
+        case 0: break;     // Emit nothing
+        case 1: emitByte(OP_POP); break;
+        default:
+            emitBytes(OP_POPN, pops);
+            break;
+    }
 }
 
 
@@ -617,21 +678,19 @@ static void ifStatement(){
     // then branch;
     emitByte(OP_POP);
     statement();
+    int elseJump = emitJump(OP_JUMP);
 
-    if (match(TOKEN_ELSE)){
-        // else branch.
-        int elseJump = emitJump(OP_JUMP);
-        patchJump(thenJump);
-        emitByte(OP_POP);
-        statement();
-        patchJump(elseJump);
-    } else {
-        // no else branch. patch.
-        patchJump(thenJump);
-    }
+    // else branch.
+    patchJump(thenJump);
+    emitByte(OP_POP);
+    if (match(TOKEN_ELSE)) statement();
+    patchJump(elseJump);
 }
 static void whileStatement(){
     int loopStart = currentChunk()->count;
+    LoopInfo loop;
+    initLoopInfo(&loop, loopStart);
+
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
     expression();
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after if condition");
@@ -643,6 +702,8 @@ static void whileStatement(){
     
     patchJump(exitJump);
     emitByte(OP_POP);
+
+    endLoopInfo();
 }
 static void forStatement(){
     // Looping variable belongs to scope of loop
@@ -671,6 +732,7 @@ static void forStatement(){
     if  (!match(TOKEN_RIGHT_PAREN)){
         // increment clause. evaluate and pop result (treat as statement)
         int bodyJump = emitJump(OP_JUMP);
+        // Overwrite 'start of loop' to be at the increment clause
         incrStart = currentChunk()->count;
         expression();
         emitByte(OP_POP);
@@ -681,6 +743,9 @@ static void forStatement(){
         patchJump(bodyJump);
     }
 
+    LoopInfo loop;
+    initLoopInfo(&loop, incrStart);
+
     statement();
     emitLoop(incrStart);
 
@@ -690,7 +755,25 @@ static void forStatement(){
     // remember to pop the loop condition off the stack when exiting!
     emitByte(OP_POP);
 
+    endLoopInfo();
+
     endScope();
+}
+
+static void breakStatement(){
+    if (current->loop == NULL)
+        error("Cannot use 'break' when not in loop.");
+    consume(TOKEN_SEMICOLON, "Expect ';' after break.");
+    emitPrejumpPops();
+    int offset = emitJump(OP_JUMP);
+    addEndpatch(offset);
+}
+static void continueStatement(){
+    if (current->loop == NULL)
+        error("Cannot use 'continue' when not in loop.");
+    consume(TOKEN_SEMICOLON, "Expect ';' after continue.");
+    emitPrejumpPops();
+    emitLoop(current->loop->loopStart);
 }
 
 
@@ -756,6 +839,10 @@ static void statement(){
         whileStatement();
     } else if (match(TOKEN_FOR)){
         forStatement();
+    } else if (match(TOKEN_BREAK)){
+        breakStatement();
+    } else if (match(TOKEN_CONTINUE)){
+        continueStatement();
     } else if (match(TOKEN_LEFT_BRACE)){
         beginScope();
         block();

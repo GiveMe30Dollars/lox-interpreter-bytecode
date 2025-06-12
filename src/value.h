@@ -43,7 +43,7 @@ typedef struct {
 #define IS_NIL(value)      ((value).type == VAL_NIL)
 #define IS_NUMBER(value)   ((value).type == VAL_NUMBER)
 #define IS_OBJ(value)      ((value).type == VAL_OBJ)
-#define IS_EMPTY(value)      ((value).type == VAL_EMPTY)
+#define IS_EMPTY(value)    ((value).type == VAL_EMPTY)
 
 // CAST MACROS
 // (does not assert type!)
