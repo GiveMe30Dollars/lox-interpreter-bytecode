@@ -839,7 +839,7 @@ static void function(FunctionType type){
 
     // All parameters go into block scope.
     beginScope();
-    consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after function name or 'fun'.");
     if (!check(TOKEN_RIGHT_PAREN)){
         do {
             current->function->arity++;
@@ -853,7 +853,13 @@ static void function(FunctionType type){
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
 
     consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
-    block();
+    if (type == TYPE_LAMBDA){
+        expression();
+        emitByte(OP_RETURN);
+        consume(TOKEN_RIGHT_BRACE, "Expect '}' after function body.");
+    } else {
+        block();
+    }
 
     ObjFunction* function = endCompiler();
 
@@ -885,6 +891,7 @@ static void returnStatement(){
         emitByte(OP_RETURN);
     }
 }
+
 static void lambda(bool canAssign){
     // Function literal with randomly-generated name
     // We came here from the Pratt parser

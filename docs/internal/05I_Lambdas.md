@@ -61,7 +61,7 @@ static void lambda(bool canAssign){
 
 Since function declarations parse earlier than this, it is correctly shadowed by `functionDeclaration()`, which *does* require a name identifier.
 
-We add a new function type `TYPE_LAMBDA`, which acts as a flag to tell the compiler to get a random name:
+We add a new function type `TYPE_LAMBDA`, which acts as a flag to tell the compiler to get a random name, and to limit the body to a single expression. An `OP_RETURN` is emitted so it is equivalent to `return expression`:
 
 ```
 // in initCompiler():
@@ -70,6 +70,15 @@ We add a new function type `TYPE_LAMBDA`, which acts as a flag to tell the compi
         current->function->name = lambdaString();
     } else if (type != TYPE_SCRIPT) {
         // get function name
+    }
+    // ...
+    consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
+    if (type == TYPE_LAMBDA) {
+        expression();
+        emitByte(OP_RETURN);
+        consume(TOKEN_RIGHT_BRACE, "Expect '}' after function body.");
+    } else {
+        block();
     }
     // ...
 ```
