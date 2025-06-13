@@ -1,10 +1,10 @@
-# 05E: Anonymous Functions
+# 05E: Anonymous Functions (Lambdas)
 
 Anonymous functions expressions, otherwise known as lambdas, start with the `fun` keyword, followed by parentheses enclosing a set of parameters, followed by braces enclosing a single expression for the body, the value of which is automatically returned.
 
 ```
 var product = fun (m, n) { m * n };
-print product(3, 2)    // 6.
+print product(3, 2);    // 6.
 ```
 
 You may use this to create a quick function to pass as an argument to another function call:
