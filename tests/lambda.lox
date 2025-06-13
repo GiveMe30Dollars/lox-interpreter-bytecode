@@ -1,0 +1,10 @@
+// This is a test for anonymous functions
+
+fun makeMultiplier(n){
+    return fun (m) {
+        return m *= n;
+    };
+}
+var doubler = makeMultiplier(2);
+print doubler;                  // Expect: <fn <XXXXXXXX>>
+print doubler(5);               // Expect: 5

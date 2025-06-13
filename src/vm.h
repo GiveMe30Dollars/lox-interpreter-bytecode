@@ -23,6 +23,7 @@ typedef struct {
     HashTable strings;
     ObjUpvalue* openUpvalues;
     Obj* objects;
+    uint32_t hash;
 } VM;
 
 extern VM vm;

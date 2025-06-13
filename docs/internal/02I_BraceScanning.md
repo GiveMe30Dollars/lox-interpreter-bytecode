@@ -45,11 +45,11 @@ if (isInterpolation){
 Hence, as suggested in the [original solution](https://github.com/munificent/craftinginterpreters/blob/master/note/answers/chapter16_scanning.md),
 
 <blockquote>
-This:
+This:<br>
 <code>
     "Tea will be ready in ${steep + cool} minutes."
 </code>
-Gets scanned like:
+Gets scanned like:<br>
 <code>
     TOKEN_INTERPOLATION "Tea will be ready in"
     TOKEN_IDENTIFIER    "steep"

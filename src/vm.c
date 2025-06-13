@@ -36,6 +36,7 @@ void initVM(){
     initTable(&vm.strings);
     vm.openUpvalues = NULL;
     vm.objects = NULL;
+    vm.hash = 0;
 
     for (int i = 0; i < importCount; i++){
         ImportNative* native = &importLibrary[i];
@@ -379,7 +380,6 @@ static InterpreterResult run(){
             }
             
             case OP_CALL: {
-                // put current register into frame->ip
                 int argCount = READ_BYTE();
                 // store ip from register to call frame (return address)
                 frame->ip = ip;

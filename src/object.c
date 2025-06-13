@@ -63,6 +63,19 @@ ObjString* takeString(char* start, int length){
     return allocateString(start, length, hash);
 }
 
+ObjString* lambdaString(){
+    // we keep a 32-bit hash in vm.hash
+    // when we generate a lambda string, regenerate another hash based on that hash
+    // then return that (+ bookkeeping info) as an ObjString*
+    vm.hash = hashBytes((uint8_t*)&vm.hash, 4);
+
+    // Display name is "[XXXXXXXX]" of length 10 (+1 for \0);
+    const int length = 10;
+    char* buffer = ALLOCATE(char, length + 1);
+    snprintf(buffer, length + 1, "[%08x]", vm.hash);
+    return takeString(buffer, length);
+}
+
 // OBJUPVALUE METHODS
 
 ObjUpvalue* newUpvalue(Value* location){

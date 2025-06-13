@@ -26,7 +26,8 @@ typedef struct {
 } Local;
 typedef enum {
     TYPE_SCRIPT,
-    TYPE_FUNCTION
+    TYPE_FUNCTION,
+    TYPE_LAMBDA
 } FunctionType;
 
 typedef struct {
@@ -262,7 +263,10 @@ static void initCompiler(Compiler* compiler, FunctionType type){
     current = compiler;
 
     // if this is a function or class, get name from parser
-    if (type != TYPE_SCRIPT){
+    // if this is a lambda, generate one
+    if (type == TYPE_LAMBDA){
+        current->function->name = lambdaString();
+    } else if (type != TYPE_SCRIPT){
         current->function->name = copyString(parser.previous.start, parser.previous.length);
     }
 
@@ -831,7 +835,7 @@ static void continueStatement(){
 
 static void function(FunctionType type){
     Compiler compiler;
-    initCompiler(&compiler, TYPE_FUNCTION);
+    initCompiler(&compiler, type);
 
     // All parameters go into block scope.
     beginScope();
@@ -880,6 +884,11 @@ static void returnStatement(){
         consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
         emitByte(OP_RETURN);
     }
+}
+static void lambda(bool canAssign){
+    // Function literal with randomly-generated name
+    // We came here from the Pratt parser
+    function(TYPE_LAMBDA);
 }
 
 
@@ -962,7 +971,7 @@ ParseRule rules[] = {
     [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
     [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
     [TOKEN_FOR]           = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_FUN]           = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_FUN]           = {lambda,   NULL,   PREC_NONE},
     [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
     [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
     [TOKEN_OR]            = {NULL,     or_,    PREC_OR},
