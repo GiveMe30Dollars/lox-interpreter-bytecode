@@ -1,12 +1,18 @@
 # 05E: Anonymous Functions
 
-Anonymous functions can now be written:
+Anonymous functions can now be written as expressions:
 
 ```
 var product = fun (m, n) { 
     return m * n; 
 };
 print product(3, 2)    // 6.
+```
+
+You may use this to create a quick function for a function call:
+
+```
+array.reduce( fun(a,b){return a + b;} );
 ```
 
 Note that due to existing Lox syntax rules, an anonymous function as a standalone expression is invalid syntax.  
