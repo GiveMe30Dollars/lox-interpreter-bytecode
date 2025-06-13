@@ -51,7 +51,7 @@ Title card!
 
 ## Extra Details
 
-Honestly there's nothing much else to add for this functionality. `TOKEN_FUN` is now has a zero-binding-power prefix rule that leads to a very barren pass to `function()`:
+Honestly there's nothing much else to add for this functionality. `TOKEN_FUN` now has a zero-binding-power prefix rule that leads to a very barren pass to `function()`:
 
 ```
 static void lambda(bool canAssign){
