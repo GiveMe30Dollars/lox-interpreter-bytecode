@@ -34,6 +34,7 @@ void initVM(){
     resetStack();
     initTable(&vm.globals);
     initTable(&vm.strings);
+    vm.openUpvalues = NULL;
     vm.objects = NULL;
 
     for (int i = 0; i < importCount; i++){
@@ -164,9 +165,40 @@ static bool callValue(Value callee, int argCount){
     return false;
 }
 
-static ObjUpvalue* captureUpvalue(Value* location){
-    ObjUpvalue* createdUpvalue = newUpvalue(location);
+static ObjUpvalue* captureUpvalue(Value* local){
+    ObjUpvalue* prevUpvalue = NULL;
+    ObjUpvalue* upvalue = vm.openUpvalues;
+
+    // iterate through the upvalues list while the stack location is less than the requested upvalue location
+    while (upvalue != NULL && upvalue->location > local){
+        prevUpvalue = upvalue;
+        upvalue = upvalue->next;
+    }
+    if (upvalue != NULL && upvalue->location == local){
+        // found existing open upvalue, reuse.
+        return upvalue;
+    }
+
+    // we either completely gone through the upvalues list, or the upvalue for this position does not exist.
+    // create new upvalue and chain it into the sorted linked list
+    ObjUpvalue* createdUpvalue = newUpvalue(local);
+    createdUpvalue->next = upvalue;
+    if (prevUpvalue == NULL){
+        vm.openUpvalues = createdUpvalue;
+    } else {
+        prevUpvalue->next = createdUpvalue;
+    }
+    // return created upvalue
     return createdUpvalue;
+}
+static void closeUpvalues(Value* last){
+    // closes all upvalues that are located above 'last' stack slot
+    while (vm.openUpvalues != NULL && vm.openUpvalues->location >= last){
+        ObjUpvalue* upvalue = vm.openUpvalues;
+        upvalue->closed = *upvalue->location;
+        upvalue->location = &upvalue->closed;
+        vm.openUpvalues = upvalue->next;
+    }
 }
 
 
@@ -374,8 +406,14 @@ static InterpreterResult run(){
                 }
                 break;
             }
+            case OP_CLOSE_UPVALUE: {
+                closeUpvalues(vm.stackTop - 1);
+                pop();
+                break;
+            }
             case OP_RETURN:{
                 Value result = pop();
+                closeUpvalues(frame->slots);
                 vm.frameCount--;
                 if (vm.frameCount == 0){
                     pop();

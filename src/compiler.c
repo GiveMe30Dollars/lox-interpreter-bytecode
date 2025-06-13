@@ -22,6 +22,7 @@ typedef struct {
 typedef struct {
     Token name;
     int depth;
+    bool isCaptured;
 } Local;
 typedef enum {
     TYPE_SCRIPT,
@@ -235,6 +236,16 @@ static void emitLoop(int loopStart){
     emitByte((offset >> 8) & 0xff);
     emitByte(offset & 0xff);
 }
+static void emitPops(int number){
+    // Assumes that number <= UINT8_MAX
+    switch (number){
+        case 0: break;     // Emit nothing
+        case 1: emitByte(OP_POP); break;
+        default:
+            emitBytes(OP_POPN, number);
+            break;
+    }
+}
 
 
 // Compiler constructor/destructor
@@ -258,6 +269,7 @@ static void initCompiler(Compiler* compiler, FunctionType type){
     // claim slot 0 of call stack for self
     Local* local = &current->locals[current->localCount++];
     local->depth = 0;
+    local->isCaptured = false;
     local->name.start = "";
     local->name.length = 0;
 }
@@ -313,13 +325,7 @@ static void emitPrejumpPops(){
             pops++;
         } else break;
     }
-    switch (pops){
-        case 0: break;     // Emit nothing
-        case 1: emitByte(OP_POP); break;
-        default:
-            emitBytes(OP_POPN, pops);
-            break;
-    }
+    emitPops(pops);
 }
 
 
@@ -432,6 +438,7 @@ static void addLocal(Token name){
     Local* local = &current->locals[current->localCount++];
     local->name = name;
     local->depth = -1;
+    local->isCaptured = false;
 }
 static void markInitialized(){
     // specific to local variables
@@ -476,13 +483,14 @@ static int resolveUpvalue(Compiler* compiler, Token* name){
 
     int local = resolveLocal(compiler->enclosing, name);
     if (local != -1){
+        compiler->enclosing->locals[local].isCaptured = true;
         return addUpvalue(compiler, (uint8_t)local, true);
     }
 
     // Recursive case: if found, add to this compiler as nonlocal upvalue
     int upvalue = resolveUpvalue(compiler->enclosing, name);
     if (upvalue != -1){
-        return addUpvalue(compiler, (uint8_t)local, false);
+        return addUpvalue(compiler, (uint8_t)upvalue, false);
     }
 
     return -1;
@@ -693,16 +701,18 @@ static void endScope(){
     current->scopeDepth--;
     int pops = 0;
     while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth){
-        pops++;
+        if (current->locals[current->localCount - 1].isCaptured){
+            // first emit the number of pops required, then reset the number of pops
+            emitPops(pops);
+            pops = 0;
+            // then close the upvalue
+            emitByte(OP_CLOSE_UPVALUE);
+        } else {
+            pops++;
+        }
         current->localCount--;
     }
-    switch (pops){
-        case 0: break;     // Emit nothing
-        case 1: emitByte(OP_POP); break;
-        default:
-            emitBytes(OP_POPN, pops);
-            break;
-    }
+    emitPops(pops);
 }
 static void block(){
     while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) 

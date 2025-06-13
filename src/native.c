@@ -30,13 +30,15 @@ Value stringNative(int argCount, Value* args){
                     return value;
                 case OBJ_FUNCTION:
                     return OBJ_VAL(AS_FUNCTION(value)->name);
-                case OBJ_NATIVE: {
+                case OBJ_NATIVE: 
                     return OBJ_VAL(AS_NATIVE(value)->name);
-                }
+                case OBJ_CLOSURE:
+                    return OBJ_VAL(AS_CLOSURE(value)->function->name);
             }
         }
     }
-    return EMPTY_VAL();
+    // Default case: empty string.
+    return OBJ_VAL(copyString("", 0));
 }
 Value concatenateNative(int argCount, Value* args){
     // Concatenates any number of strings, up to UINT8_MAX

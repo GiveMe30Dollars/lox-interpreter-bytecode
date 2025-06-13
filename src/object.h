@@ -43,6 +43,8 @@ ObjString* takeString(char* start, int length);
 typedef struct ObjUpvalue {
     Obj obj;
     Value* location;
+    Value closed;
+    struct ObjUpvalue* next;
 } ObjUpvalue;
 ObjUpvalue* newUpvalue(Value* location);
 

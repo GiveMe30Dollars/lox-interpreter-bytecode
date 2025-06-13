@@ -21,6 +21,7 @@ typedef struct {
     Value* stackTop;
     HashTable globals;
     HashTable strings;
+    ObjUpvalue* openUpvalues;
     Obj* objects;
 } VM;
 

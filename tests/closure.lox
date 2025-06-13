@@ -1,3 +1,5 @@
+// This is a test for closures
+
 fun outer() {
   var x = "outside";
   fun inner() {
@@ -6,4 +8,67 @@ fun outer() {
   inner();
 }
 outer();
+
 // Expect: outside
+
+fun makeClosure(value) {
+  fun closure() {
+    print value;
+  }
+  return closure;
+}
+
+var doughnut = makeClosure("doughnut");
+var bagel = makeClosure("bagel");
+doughnut();
+bagel();
+
+// Expect: doughnut, bagel
+
+fun outer() {
+  var x = "value";
+  fun middle() {
+    fun inner() {
+      print x;
+    }
+
+    print "create inner closure";
+    return inner;
+  }
+
+  print "return from outer";
+  return middle;
+}
+
+var mid = outer();
+var in = mid();
+in();
+
+// Expect: return from outer, create inner closure, value
+
+{
+    fun vector(x, y){
+        fun object(message){
+            fun add(other){
+                return vector(x + other("x"), y + other("y"));
+            }
+            if (message == "x") return x;
+            if (message == "y") return y;
+            if (message == "add") return add;
+        }
+        return object;
+    }
+
+    var a = vector(1, 2);
+    print "Vector A : ${a("x")}, ${a("y")}";
+    var b = vector(3, 5);
+    var c = a("add")(b);
+    print b("add");
+    print "Vector C : ${c("x")}, ${c("y")}";
+}
+
+// Expect:
+// Vector A : 1, 2
+// <fn add>
+// Vector C : 4, 7
+

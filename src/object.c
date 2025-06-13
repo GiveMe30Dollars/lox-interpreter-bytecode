@@ -68,6 +68,8 @@ ObjString* takeString(char* start, int length){
 ObjUpvalue* newUpvalue(Value* location){
     ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
     upvalue->location = location;
+    upvalue->closed = NIL_VAL();
+    upvalue->next = NULL;
     return upvalue;
 }
 
