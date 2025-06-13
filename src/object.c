@@ -63,12 +63,21 @@ ObjString* takeString(char* start, int length){
     return allocateString(start, length, hash);
 }
 
+// OBJUPVALUE METHODS
+
+ObjUpvalue* newUpvalue(Value* location){
+    ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
+    upvalue->location = location;
+    return upvalue;
+}
+
 
 // OBJFUNCTION METHODS
 
 ObjFunction* newFunction(){
     ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
     function->arity = 0;
+    function->upvalueCount = 0;
     function->name = NULL;
     initChunk(&function->chunk);
     return function;
@@ -84,6 +93,19 @@ ObjNative* newNative(NativeFn function, int arity, ObjString* name){
     return native;
 }
 
+// OBJCLOSURE METHODS
+
+ObjClosure* newClosure(ObjFunction* function){
+    ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, function->upvalueCount);
+    for (int i = 0; i < function->upvalueCount; i++){
+        upvalues[i] = NULL;
+    }
+    ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
+    closure->upvalues = upvalues;
+    closure->upvalueCount = function->upvalueCount;
+    closure->function = function;
+    return closure;
+}
 
 // OBJECT GENERAL METHODS
 
@@ -98,10 +120,14 @@ void printObject(Value value){
     switch(OBJ_TYPE(value)){
         case OBJ_STRING:
             printf("%s", AS_CSTRING(value)); break;
+        case OBJ_UPVALUE:
+            printf("<upvalue>"); break;
         case OBJ_FUNCTION:
             printFunction(AS_FUNCTION(value)); break;
         case OBJ_NATIVE:
             printf("<fn %s>", AS_NATIVE(value)->name->chars); break;
+        case OBJ_CLOSURE:
+            printFunction(AS_CLOSURE(value)->function); break;
         default: break;    // Unreachable.
     }
 }

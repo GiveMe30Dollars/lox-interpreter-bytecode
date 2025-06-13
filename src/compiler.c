@@ -28,6 +28,11 @@ typedef enum {
     TYPE_FUNCTION
 } FunctionType;
 
+typedef struct {
+    uint8_t index;
+    bool isLocal;
+} Upvalue;
+
 // For break and continue:
 // A loop needs to keep track of its starting position for continue
 // and all the indexes for jump operations to backpatch for break
@@ -54,6 +59,7 @@ typedef struct Compiler {
     Local locals[UINT8_COUNT];
     int localCount;
     int scopeDepth;
+    Upvalue upvalues[UINT8_COUNT];
 
     HashTable existingConstants;
 } Compiler;
@@ -448,6 +454,40 @@ static int resolveLocal(Compiler* compiler, Token* name){
     return -1;
 }
 
+static int addUpvalue(Compiler* compiler, int slotIdx, bool isLocal){
+    int upvalueCount = compiler->function->upvalueCount;
+    for (int i = 0; i < upvalueCount; i++){
+        Upvalue* upvalue = &compiler->upvalues[i];
+        if (upvalue->index == slotIdx && upvalue->isLocal == isLocal)
+            return i;
+    }
+    if (upvalueCount == UINT8_MAX){
+        error("Too many closure variables in function.");
+        return 0;
+    }
+    compiler->upvalues[upvalueCount].isLocal = isLocal;
+    compiler->upvalues[upvalueCount].index = slotIdx;
+    return compiler->function->upvalueCount++;
+}
+static int resolveUpvalue(Compiler* compiler, Token* name){
+    // resolves an upvalue in the enclosing compiler
+
+    if (compiler->enclosing == NULL) return -1;
+
+    int local = resolveLocal(compiler->enclosing, name);
+    if (local != -1){
+        return addUpvalue(compiler, (uint8_t)local, true);
+    }
+
+    // Recursive case: if found, add to this compiler as nonlocal upvalue
+    int upvalue = resolveUpvalue(compiler->enclosing, name);
+    if (upvalue != -1){
+        return addUpvalue(compiler, (uint8_t)local, false);
+    }
+
+    return -1;
+}
+
 static void declareVariable(){
     // specific to local variables
     // asserts no existing variable in this scope has the same name, then adds to locals
@@ -491,6 +531,9 @@ static void namedVariable(Token name, bool canAssign){
     if (arg != -1){
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
+    } else if ((arg = resolveUpvalue(current, &name)) != -1){
+        getOp = OP_GET_UPVALUE;
+        setOp = OP_SET_UPVALUE;
     } else {
         arg = identifierConstant(&name);
         getOp = OP_GET_GLOBAL;
@@ -799,7 +842,13 @@ static void function(FunctionType type){
     block();
 
     ObjFunction* function = endCompiler();
-    emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+
+    // emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+    emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+    for (int i = 0; i < function->upvalueCount; i++){
+        emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+        emitByte(compiler.upvalues[i].index);
+    }
 }
 static void functionDeclaration(){
     uint8_t global = parseVariable("Expect function name.");
