@@ -66,13 +66,18 @@ ObjString* takeString(char* start, int length){
 ObjString* lambdaString(){
     // we keep a 32-bit hash in vm.hash
     // when we generate a lambda string, regenerate another hash based on that hash
-    // then return that (+ bookkeeping info) as an ObjString*
-    vm.hash = hashBytes((uint8_t*)&vm.hash, 4);
-
+    // then return that as an ObjString*
     // Display name is "[XXXXXXXX]" of length 10 (+1 for \0);
+
     const int length = 10;
     char* buffer = ALLOCATE(char, length + 1);
-    snprintf(buffer, length + 1, "[%08x]", vm.hash);
+    do {
+        vm.hash = hashBytes((uint8_t*)&vm.hash, 4);
+        snprintf(buffer, length + 1, "[%08x]", vm.hash);
+    } while (tableFindString(&vm.strings, buffer, length, vm.hash) != NULL);
+    // this ensures no anonymous function will have the same hash
+    // realistically, FNV-1a is good enough that this won't repeat
+
     return takeString(buffer, length);
 }
 

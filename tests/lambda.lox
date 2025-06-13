@@ -1,4 +1,6 @@
-// This is a test for anonymous functions
+// This is a test for anonymous functions, 
+// and how they interact with the closure system
+// especially for loop variables
 
 fun makeMultiplier(n){
     return fun (m) {
@@ -6,5 +8,15 @@ fun makeMultiplier(n){
     };
 }
 var doubler = makeMultiplier(2);
-print doubler;                  // Expect: <fn <XXXXXXXX>>
+print doubler;                  // Expect: <fn [xxxxxxxx]>
 print doubler(5);               // Expect: 5
+
+var a = fun (n) { print n; };
+a("print!");                    // Expect: print!
+a("${a("Hey there,")}.");       // Expect: Hey there, nil.
+
+
+for (var i = 0; i < 5; i += 1){
+    var temp = fun () {};       // The anonymous ObjFunction* is made at compile-time
+    print temp;                 // Expect: <fn [xxxxxxxx]>, same value repeated
+}

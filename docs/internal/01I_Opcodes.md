@@ -17,8 +17,10 @@ The currently implemented operation codes (opcodes) are as follows:
 - **`OP_DEFINE_GLOBAL`** `idx`: Defines a Lox global variable of name `chunk->constants[idx]` with value of the stack top.
 - **`OP_GET_GLOBAL`** `idx`: Gets the value of a Lox global variable of name `chunk->constants[idx]`.
 - **`OP_SET_GLOBAL`** `idx`: Sets the value of a Lox global variable of name `chunk->constants[idx]` to the value of the stack top.
-- **`OP_GET_LOCAL`** `idx`: Gets the value of a Lox local variable from `vm.stack[idx]`.
-- **`OP_SET_LOCAL`** `idx`:  Sets the value of a Lox local variable from `vm.stack[idx]` to the value of the stack top.
+- **`OP_GET_LOCAL`** `idx`: Gets the value of a Lox local variable from `frame->slots[idx]`.
+- **`OP_SET_LOCAL`** `idx`:  Sets the value of a Lox local variable at `frame->slots[idx]` to the value of the stack top.
+- **`OP_GET_UPVALUE`** `idx`: Gets the value of a Lox upvalue from `*frame->closure->upvalues[idx]->location`.
+- **`OP_SET_UPVALUE`** `idx`:  Sets the value of a Lox upvalue at `*frame->closure->upvalues[idx]->location` to the value of the stack top.
 
 - **`OP_EQUAL`**: Pops the topmost two elements from the stack and evaluates `a == b`. Pushes the result onto the stack.
 - **`OP_GREATER`**: Pops the topmost two elements from the stack and evaluates `a > b`. Pushes the result onto the stack.
@@ -39,4 +41,14 @@ The currently implemented operation codes (opcodes) are as follows:
 - **`OP_LOOP`** `byteX2`: Moves the instruction pointer (`vm.ip`) backwards by `byteX2` bytes.
 
 - **`OP_CALL`** `argc`: The stack is arranged such that there exists a `function` object, followed by `argc` arguments, at the top of the stack. Call `function` by pushing a new CallFrame onto the call stack for these values.
+
+- **`OP_CLOSURE`** `idx` `upvalueIsLocal` `upvalueSlot` `...` : Creates an `ObjClosure*` at runtime from the function at `chunk->constants[idx]`. Then, for each upvalue defined in that function, take a pair of byte operands to capture the upvalues: 
+  - `upvalueIsLocal` determines whether the VM should search for a local variable: 
+    - `1` for walking through the current open upvalues, and creating a new one if not currently present, 
+    - `0` for inheriting an upvalue from the current enclosing function.
+  - `upvalueSlot` depends on whether this upvalue is for a local variable or an inherited upvalue: 
+    - for local variables, it's its position on the stack relative to the current enclosing `CallFrame`, 
+    - for inherited upvalues, the index in `frame->closure->upvalues`.
+-  **`OP_CLOSE_UPVALUE`**: closes an upvalue by popping it from the stack and transferring it into the `ObjUpvalue*` struct on the heap.
+
 - **`OP_RETURN`**: Pops the call stack and returns the topmost element in the popped frame. Exit the VM and return `INTERPRETER_OK` if the popped frame is executed top-level code.
