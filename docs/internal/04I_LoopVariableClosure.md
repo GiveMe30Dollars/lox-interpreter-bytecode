@@ -2,7 +2,7 @@
 
 This is part of a Challenge description for Chapter 25. The original solution can be found here: https://github.com/munificent/craftinginterpreters/blob/master/note/answers/chapter25_closures/2.md.
 
-There's nothing too significant to add here. Most of the groundwork has been laid out by Nystrom in the original solution: create an inaccessible loop variable outside the scope of the loop block, then an *inner* variable that shadows it and uses its name. Every time an iteration concludes, reassign the loop variable to the value of the innner variable in case the loop block modified it, before popping the inner variable and jumping to the increment clause. This way, closures capture the inner variable and not the loop variable.
+There's nothing too significant to add here. Most of the groundwork has been laid out by Nystrom in the original solution: create an inaccessible loop variable outside the scope of the loop block, then an *inner* variable that shadows it and uses its name. Every time an iteration concludes, reassign the loop variable to the value of the inner variable in case the loop block modified it, before popping the inner variable and jumping to the increment clause. This way, closures capture the inner variable and not the mutating loop variable.
 
 Simple, were it not the fact I added keywords to bypass the usual control flow of loops. Whoops.
 
