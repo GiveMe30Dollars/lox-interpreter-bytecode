@@ -933,11 +933,16 @@ static void function(FunctionType type){
 
     ObjFunction* function = endCompiler();
 
-    // emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
-    emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
-    for (int i = 0; i < function->upvalueCount; i++){
-        emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-        emitByte(compiler.upvalues[i].index);
+    if (function->upvalueCount > 0){
+        // create closure object
+        emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+        for (int i = 0; i < function->upvalueCount; i++){
+            emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+            emitByte(compiler.upvalues[i].index);
+        }
+    } else {
+        // create function object
+        emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
     }
 }
 static void functionDeclaration(){

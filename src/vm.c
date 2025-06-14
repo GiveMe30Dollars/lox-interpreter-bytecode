@@ -79,6 +79,15 @@ static bool isFalsey(Value value){
     #endif
 }
 
+static inline ObjFunction* getFrameFunction(CallFrame* frame){
+    if (frame->function->type == OBJ_FUNCTION){
+        return (ObjFunction*)frame->function;
+    } else {
+        return ((ObjClosure*)frame->function)->function;
+    }
+}
+
+
 static void concatenateTwo(){
     // concatenates two strings on the stack
     ObjString* b = AS_STRING(pop());
@@ -105,7 +114,7 @@ static void runtimeError(const char* format, ...){
     // Stack trace
     for (int i = vm.frameCount - 1; i >= 0; i--){
         CallFrame* frame = &vm.frames[i];
-        ObjFunction* function = frame->closure->function;
+        ObjFunction* function = getFrameFunction(frame);
         size_t instruction = frame->ip - function->chunk.code - 1;
 
         fprintf(stderr, "[line %d] in ", getLine(&function->chunk, instruction));
@@ -131,12 +140,12 @@ static bool callNative(ObjNative* native, int argCount){
     push(result);
     return true;
 }
-static bool call(ObjClosure* closure, int argCount){
+static bool call(Obj* callee, ObjFunction* function, int argCount){
     // attempts to write new call frame to VM
 
     // fail if arity not the same
-    if (closure->function->arity != argCount){
-        runtimeError("Expected %d arguments but got %d.", closure->function->arity, argCount);
+    if (function->arity != argCount){
+        runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
         return false;
     }
     // stack overflow fail
@@ -146,10 +155,16 @@ static bool call(ObjClosure* closure, int argCount){
     }
     // success; create new call frame
     CallFrame* frame = &vm.frames[vm.frameCount++];
-    frame->closure = closure;
-    frame->ip = closure->function->chunk.code;
+    frame->function = (Obj*)callee;
+    frame->ip = function->chunk.code;
     frame->slots = vm.stackTop - argCount - 1;
     return true;
+}
+static bool callFunction(ObjFunction* function, int argCount){
+    return call((Obj*)function, function, argCount);
+}
+static bool callClosure(ObjClosure* closure, int argCount){
+    return call((Obj*)closure, closure->function, argCount);
 }
 static bool callValue(Value callee, int argCount){
     // returns false if call failed
@@ -157,8 +172,10 @@ static bool callValue(Value callee, int argCount){
         switch(OBJ_TYPE(callee)){
             case OBJ_NATIVE: 
                 return callNative(AS_NATIVE(callee), argCount);
+            case OBJ_FUNCTION:
+                return callFunction(AS_FUNCTION(callee), argCount);
             case OBJ_CLOSURE:
-                return call(AS_CLOSURE(callee), argCount);
+                return callClosure(AS_CLOSURE(callee), argCount);
             default: ;    // Fallthrough to failure case
         }
     }
@@ -214,7 +231,7 @@ static InterpreterResult run(){
     // Preprocessor macros for reading bytes
     #define READ_BYTE() (*ip++)
     #define READ_SHORT() (ip += 2, (uint16_t)ip[-2] << 8 | ip[-1])
-    #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
+    #define READ_CONSTANT() (getFrameFunction(frame)->chunk.constants.values[READ_BYTE()])
     #define READ_STRING() (AS_STRING(READ_CONSTANT()))
     
     #define BINARY_OP(valueType, op)\
@@ -302,12 +319,12 @@ static InterpreterResult run(){
             }
             case OP_GET_UPVALUE: {
                 uint8_t slot = READ_BYTE();
-                push(*frame->closure->upvalues[slot]->location);
+                push(*((ObjClosure*)frame->function)->upvalues[slot]->location);
                 break;
             }
             case OP_SET_UPVALUE: {
                 uint8_t slot = READ_BYTE();
-                *frame->closure->upvalues[slot]->location = peek(0);
+                *((ObjClosure*)frame->function)->upvalues[slot]->location = peek(0);
                 break;
             }
 
@@ -401,7 +418,7 @@ static InterpreterResult run(){
                     if (isLocal){
                         closure->upvalues[i] = captureUpvalue(frame->slots + index);
                     } else {
-                        closure->upvalues[i] = frame->closure->upvalues[index];
+                        closure->upvalues[i] = ((ObjClosure*)frame->function)->upvalues[index];
                     }
                 }
                 break;
@@ -442,11 +459,7 @@ InterpreterResult interpret(const char* source){
         return INTERPRETER_COMPILE_ERROR;
 
     // push top-level call frame onto stack
-    push(OBJ_VAL(topLevelCode));
-    ObjClosure* closure = newClosure(topLevelCode);
-    pop();
-    push(OBJ_VAL(closure));
-    call(closure, 0);
+    callFunction(topLevelCode, 0);
 
     return run();
 }
