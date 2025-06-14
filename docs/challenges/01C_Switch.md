@@ -52,4 +52,4 @@ An apporach I could imagine is this:
 - Emit `OP_POP` to pop off the identifier.
 
 
-This is fine, except its even less performant than if-else chains. Hmmmmmmmmmmmmmmm.
+This is fine, except its even less performant than if-else chains because all conditionals are evaluated. Hmmmmmmmmmmmmmmm.

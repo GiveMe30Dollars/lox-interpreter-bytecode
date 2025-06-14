@@ -2,7 +2,7 @@
 
 ## Scanning
 
-After the addition of string interpolation (refer to document 04E), scanning is no longer stateless.
+After the addition of string interpolation (refer to Document [04E](../external/04E_StringInterpolation.md)), scanning is no longer stateless.
 
 `}` could refer to either the end of a block quote, or the end of a string interpolation. Either case has different behaviour: for the block quote, make a `TOKEN_RIGHT_BRACE`; for the string interpolation, move beyond the `}` and scan the rest of the string.
 

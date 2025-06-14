@@ -23,4 +23,4 @@ fun (m, n){ m + n };
 
 Anonymous functions also support closures.
 
-Refer to document 05I for implementation details.
+Refer to Document [05I](../internal/05I_Lambdas.md) for implementation details.

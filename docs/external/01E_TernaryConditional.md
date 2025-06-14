@@ -48,7 +48,7 @@ In this implementation of Lox, ternary conditionals:
 - Have branches that have at most `PREC_CONDITIONAL` precedence.
   - `a = cond ? b = b + 1 : c ;` will not compile.  
   Use parentheses instead: `a = cond ? (b = b + 1) : c;`
-- Only returns rvalues.
+- Only returns values, and not assignable variables.
   - `(cond ? a : b) = value` will not compile.
 
 ## Optionally Ternary

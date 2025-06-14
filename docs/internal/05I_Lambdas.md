@@ -1,7 +1,6 @@
 # 05I: Lambdas (Anonymous Functions)
 
 *Aside: I know that they're not technically called that, but it's a nice and catchy name lol*  
-*Aside: Document 04I is currently reserved for a 03I continuation to be compatible with Challenge 25-2.*
 
 Anonymous functions are really just functions under the hood. In fact, Lox functions do not need to inherently bind to a name, despite the `name` field in `ObjFunction` representation. The name-binding happens *after* `OP_CONSTANT` or `OP_CLOSURE` wrought up the function from the constants array and put it onto the stack. Then, we either bind it to a global identifier or leave it as-is for a local variable.
 

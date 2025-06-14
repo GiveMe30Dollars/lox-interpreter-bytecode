@@ -29,4 +29,4 @@ print "${drink} will be ready in ${steep + cool} minutes.";
 print concatenate(string(drink), " will be ready in ", string(steep + cool), " minutes.");
 ```
 
-Implementation details limit the maximum number of nested braces to be 256. This includes braces used in block quotes *and* string interpolations. For further details, refer to 02I.
+Implementation details limit the maximum number of nested braces to be 256. This includes braces used in block quotes *and* string interpolations. For further details, refer to Document [02I](../internal/02I_BraceScanning.md).
