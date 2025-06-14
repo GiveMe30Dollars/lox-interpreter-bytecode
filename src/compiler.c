@@ -45,6 +45,8 @@ typedef struct {
 typedef struct LoopInfo {
     int loopStart;
     int loopDepth;
+    int loopVariable;
+    int innerVariable;
     struct LoopInfo* enclosing;
     ValueArray endpatches;
 } LoopInfo;
@@ -301,6 +303,9 @@ static void initLoopInfo(LoopInfo* loopInfo, int loopStart){
     initValueArray(&loopInfo->endpatches);
     loopInfo->loopStart = loopStart;
     loopInfo->loopDepth = current->scopeDepth;
+    // initialize loop and inner variable to -1 (specific to for)
+    loopInfo->loopVariable = -1;
+    loopInfo->innerVariable = -1;
     loopInfo->enclosing = current->loop;
     // set this as current loop
     current->loop = loopInfo;
@@ -322,11 +327,18 @@ static void addEndpatch(int offset){
 }
 static void emitPrejumpPops(){
     // iterates through locals (does not affect it!), emits pops for values within the loop
+    // if the loop has a captured value, emit OP_CLOSE_UPVALUE instead
     // (scope depth higher but not including depth at which loop is created)
     int pops = 0;
     for (int i = current->localCount - 1; i >= 0; i--){
         if (current->locals[i].depth > current->loop->loopDepth){
-            pops++;
+            if (current->locals[i].isCaptured){
+                emitPops(pops);
+                pops = 0;
+                emitByte(OP_CLOSE_UPVALUE);
+            } else {
+                pops++;
+            }
         } else break;
     }
     emitPops(pops);
@@ -764,11 +776,21 @@ static void whileStatement(){
 static void forStatement(){
     // Looping variable belongs to scope of loop
     beginScope();
+
+    // Loop variable is initialized with no name
+    // the accessible inner variable is in the loop block scope
+    int loopVariable = -1;
+    Token loopVariableName;
+    loopVariableName.start = NULL;
+
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
     if (match(TOKEN_SEMICOLON)){
         // No initializer
     } else if (match(TOKEN_VAR)){
+        // Save name and position (must be local variable)
+        loopVariableName = parser.current;
         varDeclaration();
+        loopVariable = current->localCount - 1;
     } else {
         exprStatement();
     }
@@ -799,10 +821,36 @@ static void forStatement(){
         patchJump(bodyJump);
     }
 
+    // create inner variable if loop variable declared
+    // with value of loop variable
+    // create new scope to contain it
+    int innerVariable = -1;
+    if (loopVariable != -1){
+        beginScope();
+        emitBytes(OP_GET_LOCAL, loopVariable);
+        addLocal(loopVariableName);
+        markInitialized();
+        innerVariable = current->localCount - 1;
+    }
+
     LoopInfo loop;
     initLoopInfo(&loop, incrStart);
+    // save loop and inner variable information
+    loop.loopVariable = loopVariable;
+    loop.innerVariable = innerVariable;
 
     statement();
+
+    if (loopVariable != -1){
+        // set the value of the loop variable to the inner variable at end of statement
+        // then loop to increment clause
+        emitBytes(OP_GET_LOCAL, (uint8_t)innerVariable);
+        emitBytes(OP_SET_LOCAL, (uint8_t)loopVariable);
+        emitByte(OP_POP);
+        // don't forget to close scope opened when inner variable made!
+        endScope();
+    }
+
     emitLoop(incrStart);
 
     if (exitJump != -1){
@@ -819,16 +867,38 @@ static void forStatement(){
 static void breakStatement(){
     if (current->loop == NULL)
         error("Cannot use 'break' when not in loop.");
-    consume(TOKEN_SEMICOLON, "Expect ';' after break.");
+    consume(TOKEN_SEMICOLON, "Expect ';' after 'break'.");
+
+    // No need to assign to loop variable since we're breaking the loop.
     emitPrejumpPops();
+
+    // remove inner variable (if any): OP_CLOSE_UPVALUE if captured, OP_POP otherwise
+    if (current->loop->loopVariable != -1)
+        emitByte(current->locals[current->localCount - 1].isCaptured ? OP_CLOSE_UPVALUE : OP_POP);
+    
+    // emit jump to endpatch
     int offset = emitJump(OP_JUMP);
     addEndpatch(offset);
 }
 static void continueStatement(){
     if (current->loop == NULL)
         error("Cannot use 'continue' when not in loop.");
-    consume(TOKEN_SEMICOLON, "Expect ';' after continue.");
+    consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'.");
+
+    // assign inner variable to loop variable (if any)
+    if (current->loop->loopVariable != -1){
+        emitBytes(OP_GET_LOCAL, (uint8_t)current->loop->innerVariable);
+        emitBytes(OP_SET_LOCAL, (uint8_t)current->loop->loopVariable);
+        emitByte(OP_POP);
+    }
+
     emitPrejumpPops();
+
+    // remove inner variable (if any): OP_CLOSE_UPVALUE if captured, OP_POP otherwise
+    if (current->loop->loopVariable != -1)
+        emitByte(current->locals[current->localCount - 1].isCaptured ? OP_CLOSE_UPVALUE : OP_POP);
+
+    // emit jump to loop start
     emitLoop(current->loop->loopStart);
 }
 

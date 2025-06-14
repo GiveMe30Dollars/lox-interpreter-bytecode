@@ -1,0 +1,35 @@
+// This tests the closure of loop variables, 
+// particularly in combination with break and continue
+
+var closure;
+for (var i = 1; i <= 5; i += 1){
+    if (i == 2){
+        i += 1;
+        continue;
+    }
+    if (i == 4){
+        closure = fun (n) {i * n};
+        break;
+    }
+    print i;
+}
+print closure(4);
+// Expect: 1, 16
+
+
+var twoMult;
+var tenMult;
+for (var i = 1; i <= 10; i *= 5){
+    if (i == 1){
+        i = 2;
+        twoMult = fun(n) {i * n};
+        continue;
+    }
+    if (i == 10) {
+        tenMult = fun(n) {i * n};
+        break;
+    }
+}
+print twoMult(8);
+print tenMult(10);
+// Expect: 16, 100

@@ -90,7 +90,7 @@ argc += 1;
 emit OP_CALL argc
 ```
 
-This is found in lines 504-537 of compiler.c.
+This is found in compiler.c.
 
 ## Concatenate
 
