@@ -5,7 +5,7 @@ fun fib(n){
 
 var start = clock();
 print fib;
-print fib(30);
+print fib(40);
 var end = clock();
 print "Time Elapsed (s):";
 print (end - start);
@@ -14,3 +14,6 @@ print (end - start);
 // For fib(30) == 832040,
 // the AST-based implemetation took ~100 seconds
 // the bytecode implemetation took ~0.7 seconds without DEBUG_TRACE_EXECUTION
+// with addition of nonclosure checking, time = 0.739s
+
+// fib(40) = 1.02334e+08 takes 92.2s 
