@@ -99,7 +99,6 @@ void markObject(Obj* object){
         vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
         vm.grayStack = (Obj**)realloc(vm.grayStack, sizeof(Obj*) * vm.grayCapacity);
         if (vm.grayStack == NULL){
-            fprintf(stderr, "Failed to reallocate gray stack.\n");
             exit(1);
         }
     }
