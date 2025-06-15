@@ -701,6 +701,22 @@ static void or_(bool canAssign){
     patchJump(endJump);
 }
 
+static bool tryParseExpression(TokenType terminator){
+    // attempts to parse as expression
+    // if isStatement, parse nothing, return false
+    // if is expression followed by terminator, return true
+    // if is expression not followed by terminator (usually ';'),
+    // parse as expresison statement and return false.
+    if (isStatement()) return false;
+    expression();
+    if (match(terminator)) return true;
+    else {
+        consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
+        emitByte(OP_POP);
+        return false;
+    }
+}
+
 
 // PARSER STATEMENT FUNCTIONS
 static void varDeclaration(){
@@ -942,20 +958,8 @@ static void function(FunctionType type){
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
 
     consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
-    if (type == TYPE_LAMBDA && !isStatement()){
-        // if the current keyword does not indicate a statement, attempt to parse as expression
-        // if not end of expression (TOKEN_RIGHT_BRACE), is statement:
-        // consume semicolon and parse block.
-        expression();
-        if (match(TOKEN_RIGHT_BRACE)){
-            // end of expression.
-            emitByte(OP_RETURN);
-        } else {
-            // statements, of which the first is an expression
-            consume(TOKEN_SEMICOLON,  "Expect ';' after expression.");
-            emitByte(OP_POP);
-            block();
-        }
+    if ((type == TYPE_LAMBDA) && tryParseExpression(TOKEN_RIGHT_BRACE)){
+        emitByte(OP_RETURN);
     } else {
         block();
     }
@@ -1135,7 +1139,7 @@ static void parsePrecedence(Precedence precedence){
 
 // PUBLIC FUNCTIONS
 
-ObjFunction* compile(const char* source){
+ObjFunction* compile(const char* source, bool evalExpr){
     initScanner(source);
 
     // initialize parser
@@ -1147,9 +1151,29 @@ ObjFunction* compile(const char* source){
     Compiler compiler;
     initCompiler(&compiler, TYPE_SCRIPT);
 
-    // primes scanner such that current has a token
+    // primes scanner such that parser.current has a token
     advance();
     
+    if (evalExpr && tryParseExpression(TOKEN_EOF)){
+        // expression, value is currently on stack
+        // print only if not nil
+
+        // duplicate and test for equality with OP_NIL
+        emitByte(OP_DUPLICATE);
+        emitByte(OP_NIL);
+        emitByte(OP_EQUAL);
+
+        // then clause
+        int thenJump = emitJump(OP_JUMP_IF_FALSE);
+        emitBytes(OP_POPN, 2);
+        int elseJump = emitJump(OP_JUMP);
+
+        // else clause
+        patchJump(thenJump);
+        emitByte(OP_POP);
+        emitByte(OP_PRINT);
+        patchJump(elseJump);
+    }
     while (!match(TOKEN_EOF)){
         declaration();
     }

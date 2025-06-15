@@ -6,7 +6,7 @@
 
 // Single-pass compiler
 // States are hidden in private functions
-ObjFunction* compile(const char* source);
+ObjFunction* compile(const char* source, bool evalExpr);
 
 void markCompilerRoots();
 

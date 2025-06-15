@@ -281,6 +281,10 @@ static InterpreterResult run(){
             case OP_NIL:   push(NIL_VAL()); break;
             case OP_TRUE:  push(BOOL_VAL(true)); break;
             case OP_FALSE: push(BOOL_VAL(false)); break;
+            case OP_DUPLICATE: {
+                push(peek(0));
+                break;
+            }
             case OP_POP:   pop(); break;
             case OP_POPN: {
                 vm.stackTop -= READ_BYTE();
@@ -295,7 +299,7 @@ static InterpreterResult run(){
             }
             case OP_GET_GLOBAL: {
                 Value name = READ_CONSTANT();
-                Value value;
+                Value value = NIL_VAL();
                 if (!tableGet(&vm.globals, name, &value)){
                     frame->ip = ip;
                     runtimeError("Undefined variable '%s'", AS_CSTRING(name));
@@ -461,12 +465,13 @@ static InterpreterResult run(){
     #undef READ_STRING
     #undef BINARY_OP
 }
-InterpreterResult interpret(const char* source){
-    ObjFunction* topLevelCode = compile(source);
+InterpreterResult interpret(const char* source, bool evalExpr){
+    ObjFunction* topLevelCode = compile(source, evalExpr);
     if (topLevelCode == NULL)
         return INTERPRETER_COMPILE_ERROR;
 
     // push top-level call frame onto stack
+    push(OBJ_VAL(topLevelCode));
     callFunction(topLevelCode, 0);
 
     return run();

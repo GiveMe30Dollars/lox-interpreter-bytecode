@@ -22,7 +22,7 @@ static void repl(){
             initVM();
             continue;
         }
-        interpret(line);
+        interpret(line, true);
     }
 }
 static char* readFile(const char* path){
@@ -55,7 +55,7 @@ static char* readFile(const char* path){
 }
 static void runFile(const char* path){
     char* source = readFile(path);
-    interpret(source);
+    interpret(source, false);
 }
 
 #include "scanner.h"
@@ -74,15 +74,6 @@ int main(int argc, const char *argv[]) {
         exit(1);
     }
     
-    // printf("STRING INTERN TABLE: %d\n", vm.strings.count);
-    // for (int i = 0; i < vm.strings.capacity; i++){
-    //     Entry* entry = &vm.strings.entries[i];
-    //     if (IS_EMPTY(entry->key)) continue;
-    //     printf(" | ");
-    //     printValue(entry->key);
-    //     printf("\n");
-    // }
-
     freeVM();
 
     return 0;

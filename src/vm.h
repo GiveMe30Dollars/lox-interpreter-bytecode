@@ -48,6 +48,6 @@ typedef enum {
     INTERPRETER_RUNTIME_ERROR
 } InterpreterResult;
 
-InterpreterResult interpret(const char* source);
+InterpreterResult interpret(const char* source, bool evalExpr);
 
 #endif

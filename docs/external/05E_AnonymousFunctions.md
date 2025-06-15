@@ -1,6 +1,8 @@
 # 05E: Anonymous Functions (Lambdas)
 
-Anonymous functions expressions, otherwise known as lambdas, start with the `fun` keyword, followed by parentheses enclosing a set of parameters, followed by braces enclosing either a sequence of declarations, or a single expression for the body, the value of which is automatically returned.
+Anonymous functions expressions start with the `fun` keyword, followed by parentheses enclosing a set of parameters, followed by braces enclosing a sequence of declarations.
+
+Lambdas are a subset of anonymous function expressions that contains a single expression for the body, which is automatically returned upon calling.
 
 ```
 var sum = fun (m, n) {
@@ -18,7 +20,7 @@ You may use this to create a quick function to pass as an argument to another fu
 array.reduce( fun(a,b){a + b} );
 ```
 
-Note that due to existing Lox syntax rules for defining named functions, an anonymous function as a standalone expression is invalid syntax:  
+Note that due to existing Lox syntax rules for defining named functions, an anonymous function or lambda as a standalone expression is invalid syntax:  
 
 ```
 fun (m, n){ m + n };
