@@ -21,3 +21,4 @@ for (var i = 0; i < 10; i = i + 1) {
 // With indiscrimitate closure creation, average time is 1.226s
 // With selective closure creation,      average time is 1.068s
 // Addition of gabage collector,         average time is 1.275s
+// Addition of OBJ_COMPRESSION,          average time is 1.260s compared to 1.263s

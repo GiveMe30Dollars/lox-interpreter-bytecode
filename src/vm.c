@@ -86,7 +86,7 @@ static bool isFalsey(Value value){
 }
 
 static inline ObjFunction* getFrameFunction(CallFrame* frame){
-    if (frame->function->type == OBJ_FUNCTION){
+    if (objType(frame->function) == OBJ_FUNCTION){
         return (ObjFunction*)frame->function;
     } else {
         return ((ObjClosure*)frame->function)->function;

@@ -15,12 +15,17 @@
 static Obj* allocateObject(size_t size, ObjType type){
     // allocate and assign object type
     Obj* object = (Obj*)reallocate(NULL, 0, size);
+
+    // initialize fields to default values, chain to vm.objects as head of linked list
+    #ifdef OBJ_HEADER_COMPRESSION
+    object->header = ((uint64_t)vm.objects << 8)  | (uint64_t)type;
+    vm.objects = object;
+    #else
     object->type = type;
     object->isMarked = false;
-
-    // insert new object into VM linked list
     object->next = vm.objects;
     vm.objects = object;
+    #endif
 
     #ifdef DEBUG_LOG_GC
     printf("%p allocate %zu for %d\n", (void*)object, size, type);

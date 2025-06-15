@@ -6,8 +6,23 @@ This section documents new additions to the implemnetation that may be distinct 
 
 ## Common Flags
 
-The following flags in `common.h` changes the behaviour of the VM:
+The following preprocessor flags in `common.h` changes the behaviour of the VM:
 
-- **`DEBUG_TRACE_EXECUTION`**: (Verbose) Enables line-by-line printing of stack state during VM runtime.
-- **`DEBUG_PRINT_CODE`**: (Verbose) Enables printing of chunk disassembly onto stdout upon successful compilation.
-- **`IS_FALSEY_EXTENDED`**: Enables `Number(0)`, `String("")` and inaccessible type `<empty>` to be evaluated as Boolean `false` for boolean operations.
+- **`DEBUG_TRACE_EXECUTION`**: (Verbose) Logs line-by-line execution and stack state onto `stdout` during VM runtime.  
+  **Off** by default.
+
+- **`DEBUG_PRINT_CODE`**: (Verbose) Prints of chunk disassembly onto `stdout` upon successful compilation.  
+  **Off** by default.
+
+- **`DEBUG_STRESS_GC`**: Calls garbage collection every time a new allocation is made.  
+  **Off** by default.
+
+- **`DEBUG_LOG_GC`**: (Verbose) Logs any allocation, deallocation, marking and traversal of objects onto `stdout`.  
+  **Off** by default.
+
+- **`OBJ_HEADER_COMPRESSION`**: Compresses the `Obj` header shared by all heap-allocated object types from 16 bytes to 8 bytes.  
+  *Assumes 64x host architecture. Assumes at most 48 little-endian bits is used for 64-bit pointers.*  
+  **On** by default.
+
+- **`IS_FALSEY_EXTENDED`**: Enables `Number(0)`, `String("")` and inaccessible type `<empty>` to be evaluated as Boolean `false` for boolean operations.  
+  **Off** by default.

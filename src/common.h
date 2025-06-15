@@ -17,6 +17,8 @@
 // #define DEBUG_STRESS_GC
 // #define DEBUG_LOG_GC
 
+#define OBJ_HEADER_COMPRESSION
+
 // #define IS_FALSEY_EXTENDED
 
 #endif

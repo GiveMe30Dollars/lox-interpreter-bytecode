@@ -39,7 +39,7 @@ void freeObject(Obj* object){
     printf("%p free type %d\n", (void*)object, object->type);
     #endif
 
-    switch(object->type){
+    switch(objType(object)){
         case OBJ_STRING: {
             ObjString* string = (ObjString*)object;
             FREE_ARRAY(char, string->chars, string->length);
@@ -73,7 +73,7 @@ void freeObject(Obj* object){
 void freeObjects(){
     Obj* object = vm.objects;
     while (object != NULL){
-        Obj* next = object->next;
+        Obj* next = objNext(object);
         freeObject(object);
         object = next;
     }
@@ -84,7 +84,7 @@ void freeObjects(){
 
 void markObject(Obj* object){
     if (object == NULL) return;
-    if (object->isMarked) return;
+    if (isMarked(object)) return;
 
     #ifdef DEBUG_LOG_GC
     printf("%p mark ", (void*)object);
@@ -92,7 +92,7 @@ void markObject(Obj* object){
     printf("\n");
     #endif
 
-    object->isMarked = true;
+    setIsMarked(object, true);
     // add to gray stack
     if (vm.grayCount + 1 > vm.grayCapacity){
         // expand allocation. exit if reallocation failed.
@@ -144,7 +144,7 @@ static void blackenObject(Obj* object){
     printf("\n");
     #endif
 
-    switch(object->type){
+    switch(objType(object)){
         case OBJ_NATIVE:
         case OBJ_STRING:
             break;    // Nothing additional to mark
@@ -181,18 +181,18 @@ void sweep(){
     Obj* previous = NULL;
     Obj* object = vm.objects;
     while (object != NULL) {
-        if (object->isMarked){
+        if (isMarked(object)){
             // reset isMarked flag for next collection
-            object->isMarked = false;
+            setIsMarked(object, false);
             previous = object;
-            object = object->next;
+            object = objNext(object);
         } else {
             // to be deleted.
             Obj* unreached = object;
-            object = object->next;
+            object = objNext(object);
             // relink linked list
             if (previous != NULL) {
-                previous->next = object;
+                setObjNext(previous, object);
             } else {
                 vm.objects = object;
             }

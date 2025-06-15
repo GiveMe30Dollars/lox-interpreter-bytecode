@@ -183,7 +183,7 @@ ObjString* tableFindString(HashTable* table, const char* string, int length, uin
 void tableRemoveWhite(HashTable* table){
     for (int i = 0; i < table->capacity; i++){
         Entry* entry = &table->entries[i];
-        if (!IS_EMPTY(entry->key) && IS_OBJ(entry->value) && !(AS_OBJ(entry->value)->isMarked)){
+        if (!IS_EMPTY(entry->key) && IS_OBJ(entry->value) && !(isMarked(AS_OBJ(entry->value))) ){
             // storing reference to unreachable object. delete entry
             tableDelete(table, entry->key);
         }
