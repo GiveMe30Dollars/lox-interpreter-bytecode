@@ -1,6 +1,6 @@
 # 07E: Lox REPL
 
-The Lox REPL now supports evaluating expressions.
+The Lox REPL now supports evaluating expressions. The result of the evaluation, if not `nil`, is automatically printed onto the REPL output.
 
 ```
 >>> var a = 3;
