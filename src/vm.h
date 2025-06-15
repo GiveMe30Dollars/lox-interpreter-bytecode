@@ -28,6 +28,8 @@ typedef struct {
     uint32_t hash;
 
     // Garbage collector fields (we manage this ourselves)
+    size_t bytesAllocated;
+    size_t nextGC;
     int grayCount;
     int grayCapacity;
     Obj** grayStack;

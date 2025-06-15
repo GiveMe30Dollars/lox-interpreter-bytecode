@@ -38,6 +38,8 @@ void initVM(){
     vm.objects = NULL;
     vm.hash = 0;
 
+    vm.bytesAllocated = 0;
+    vm.nextGC = 1024 * 1024;
     vm.grayCount = 0;
     vm.grayCapacity = 0;
     vm.grayStack = NULL;

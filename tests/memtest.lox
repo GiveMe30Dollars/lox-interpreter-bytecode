@@ -1,5 +1,6 @@
 // This is written as a test for the garbage collector
 // assumes DEBUG_STRESS_GC
+// refer to Document 06I
 
 var a = "first value";
 var b = "update";
@@ -9,5 +10,15 @@ var b = "update";
 }
 
 {
-    b = "${b}: trigger GC!";
+    print "${b}: trigger GC!";
+}
+
+print "";
+
+for (var i = 0; i < 5; i += 1){
+    {
+        var mult = fun(n) {i * n};
+        print mult(2);
+    }
+    print "${b}: trigger GC!";
 }
