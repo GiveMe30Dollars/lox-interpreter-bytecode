@@ -73,7 +73,11 @@ Then, when we reach the GC-trigerring line:
 
 It sweeps away the previous dynamically-created string.
 
+![GC1](https://github.com/user-attachments/assets/b1dd0231-4bbf-4588-9218-7f9daff1353e)
+
 Note that because the trigger line works by creating an inaccessible dynamically-allocated string, it will be sweeped when the GC is next called.
+
+![GC2](https://github.com/user-attachments/assets/9d870553-c246-4657-bcca-61ede27fda8a)
 
 # Closures and Upvalues
 
@@ -94,6 +98,8 @@ Recall from Document [04I](04I_LoopVariableClosure.md) that the variable `i` acc
 1. When we create the closure object, we allocate one `ObjClosure` and one `ObjUpvalue`.  
 2. When we manually trigger GC, the `ObjClosure` is out of scope, but *not* the `ObjUpvalue`. It is an open upvalue that is *still* on the stack because the inner variable of the for loop is still accessible. The closure object is deallocated. The trigger string is allocated.  
 3. In the next iteration, when we create the closure object, deallocate the orphaned closed upvalue and trigger string.
+
+![GC3](https://github.com/user-attachments/assets/179da8fe-9eee-49e4-95b7-692c9fb46e3b)
 
 # What Others?
 
