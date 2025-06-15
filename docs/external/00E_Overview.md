@@ -21,7 +21,7 @@ The following preprocessor flags in `common.h` changes the behaviour of the VM:
   **Off** by default.
 
 - **`OBJ_HEADER_COMPRESSION`**: Compresses the `Obj` header shared by all heap-allocated object types from 16 bytes to 8 bytes.  
-  *Assumes 64x host architecture. Assumes at most 48 little-endian bits is used for 64-bit pointers.*  
+  *Assumes 64x host architecture. Assumes at most 48 little-endian bits used for 64-bit pointers.*  
   **On** by default.
 
 - **`IS_FALSEY_EXTENDED`**: Enables `Number(0)`, `String("")` and inaccessible type `<empty>` to be evaluated as Boolean `false` for boolean operations.  
