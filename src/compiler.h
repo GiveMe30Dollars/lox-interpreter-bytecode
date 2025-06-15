@@ -8,4 +8,6 @@
 // States are hidden in private functions
 ObjFunction* compile(const char* source);
 
+void markCompilerRoots();
+
 #endif

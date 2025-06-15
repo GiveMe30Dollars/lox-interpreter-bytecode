@@ -38,6 +38,10 @@ void initVM(){
     vm.objects = NULL;
     vm.hash = 0;
 
+    vm.grayCount = 0;
+    vm.grayCapacity = 0;
+    vm.grayStack = NULL;
+
     for (int i = 0; i < importCount; i++){
         ImportNative* native = &importLibrary[i];
         defineNative(native->name, native->function, native->arity);
@@ -90,8 +94,8 @@ static inline ObjFunction* getFrameFunction(CallFrame* frame){
 
 static void concatenateTwo(){
     // concatenates two strings on the stack
-    ObjString* b = AS_STRING(pop());
-    ObjString* a = AS_STRING(pop());
+    ObjString* b = AS_STRING(peek(0));
+    ObjString* a = AS_STRING(peek(1));
 
     int length = a->length + b->length;
     char* chars = ALLOCATE(char, length + 1);
@@ -100,6 +104,8 @@ static void concatenateTwo(){
     chars[length] = '\0';
 
     ObjString* result = takeString(chars, length);
+    pop();
+    pop();
     push(OBJ_VAL(result));
 }
 
@@ -257,8 +263,8 @@ static InterpreterResult run(){
             printf(" ]");
         }
         printf("\n");
-        disassembleInstruction(&frame->closure->function->chunk, 
-            (int)(ip - frame->closure->function->chunk.code));
+        disassembleInstruction(&getFrameFunction(frame)->chunk, 
+            (int)(ip - getFrameFunction(frame)->chunk.code));
         #endif
 
         // excecute instruction

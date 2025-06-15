@@ -34,4 +34,7 @@ bool tableDelete(HashTable* table, Value key);
 void tableAddAll(HashTable* from, HashTable* to);
 ObjString* tableFindString(HashTable* table, const char* string, int length, uint32_t hash);
 
+void tableRemoveWhite(HashTable* table);
+void markTable(HashTable* table);
+
 #endif

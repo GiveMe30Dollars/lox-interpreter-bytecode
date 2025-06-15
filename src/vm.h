@@ -16,6 +16,7 @@ typedef struct {
 } CallFrame;
 
 typedef struct {
+    // Runtime fields
     CallFrame frames[FRAMES_MAX];
     int frameCount;
     Value stack[STACK_MAX];
@@ -25,6 +26,11 @@ typedef struct {
     ObjUpvalue* openUpvalues;
     Obj* objects;
     uint32_t hash;
+
+    // Garbage collector fields (we manage this ourselves)
+    int grayCount;
+    int grayCapacity;
+    Obj** grayStack;
 } VM;
 
 extern VM vm;

@@ -1,0 +1,13 @@
+// This is written as a test for the garbage collector
+// assumes DEBUG_STRESS_GC
+
+var a = "first value";
+var b = "update";
+
+{
+    var b = "${a}: dynamically-created string.";
+}
+
+{
+    b = "${b}: trigger GC!";
+}

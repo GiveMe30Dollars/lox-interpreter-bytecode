@@ -5,6 +5,7 @@
 #include "common.h"
 #include "compiler.h"
 #include "debug.h"
+#include "memory.h"
 #include "object.h"
 #include "scanner.h"
 
@@ -1127,4 +1128,13 @@ ObjFunction* compile(const char* source){
 
     ObjFunction* function = endCompiler();
     return !parser.hasError ? function : NULL;
+}
+
+
+void markCompilerRoots(){
+    // mark all compiling functions
+    for (Compiler* compiler = current; compiler != NULL; compiler = compiler->enclosing){
+        markObject((Obj*)compiler->function);
+    }
+    // the locals array does not need to be marked.
 }

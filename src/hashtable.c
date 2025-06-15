@@ -176,3 +176,23 @@ ObjString* tableFindString(HashTable* table, const char* string, int length, uin
         index = (index + 1) % table->capacity;
     } 
 }
+
+
+// MEMORY METHODS
+
+void tableRemoveWhite(HashTable* table){
+    for (int i = 0; i < table->capacity; i++){
+        Entry* entry = &table->entries[i];
+        if (!IS_EMPTY(entry->key) && IS_OBJ(entry->value) && !(AS_OBJ(entry->value)->isMarked)){
+            // storing reference to unreachable object. delete entry
+            tableDelete(table, entry->key);
+        }
+    }
+}
+void markTable(HashTable* table){
+    for (int i = 0; i < table->capacity; i++){
+        Entry* entry = &table->entries[i];
+        markValue(entry->key);
+        markValue(entry->value);
+    }
+}

@@ -1,6 +1,9 @@
 #ifndef clox_memory_h
 #define clox_memory_h
 
+#include "value.h"
+#include "object.h"
+
 // MEMORY ALLOCATION MACROS
 #define ALLOCATE(type, count) \
     (type*)reallocate(NULL, 0, (count) * sizeof(type))
@@ -19,5 +22,9 @@
 
 void* reallocate(void* ptr, size_t oldSize, size_t newSize);
 void freeObjects();
+
+void markObject(Obj* obj);
+void markValue(Value value);
+void collectGarbage();
 
 #endif

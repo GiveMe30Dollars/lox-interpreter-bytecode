@@ -1,10 +1,22 @@
 #include <stdlib.h>
 
+#include "compiler.h"
 #include "memory.h"
 #include "object.h"
 #include "vm.h"
 
+#ifdef DEBUG_LOG_GC
+#include <stdio.h>
+#include "debug.h"
+#endif
+
+
 void* reallocate(void* ptr, size_t oldSize, size_t newSize){
+    if (newSize > oldSize){
+        #ifdef DEBUG_STRESS_GC
+        collectGarbage();
+        #endif
+    }
     if (newSize == 0){
         free(ptr);
         return NULL;
@@ -16,6 +28,10 @@ void* reallocate(void* ptr, size_t oldSize, size_t newSize){
 
 
 void freeObject(Obj* object){
+    #ifdef DEBUG_LOG_GC
+    printf("%p free type %d\n", (void*)object, object->type);
+    #endif
+
     switch(object->type){
         case OBJ_STRING: {
             ObjString* string = (ObjString*)object;
@@ -54,4 +70,145 @@ void freeObjects(){
         freeObject(object);
         object = next;
     }
+    free(vm.grayStack);
+}
+
+// GARBAGE COLLECTION METHODS
+
+void markObject(Obj* object){
+    if (object == NULL) return;
+    if (object->isMarked) return;
+
+    #ifdef DEBUG_LOG_GC
+    printf("%p mark ", (void*)object);
+    printObject(OBJ_VAL(object));
+    printf("\n");
+    #endif
+
+    object->isMarked = true;
+    // add to gray stack
+    if (vm.grayCount + 1 > vm.grayCapacity){
+        // expand allocation. exit if reallocation failed.
+        vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
+        vm.grayStack = (Obj**)realloc(vm.grayStack, sizeof(Obj*) * vm.grayCapacity);
+        if (vm.grayStack == NULL){
+            fprintf(stderr, "Failed to reallocate gray stack.\n");
+            exit(1);
+        }
+    }
+    vm.grayStack[vm.grayCount++] = object;
+}
+void markValue(Value value){
+    if (IS_OBJ(value)) markObject(AS_OBJ(value));
+}
+static void markArray(ValueArray* array){
+    for (int i = 0; i < array->count; i++){
+        markValue(array->values[i]);
+    }
+}
+
+static void markRoots(){
+    // mark all in-use slots of the stack
+    for (Value* slot = vm.stack; slot < vm.stackTop; slot++){
+        markValue(*slot);
+    }
+
+    // mark all call-frame functions/closures
+    for (int i = 0; i < vm.frameCount; i++){
+        markObject(vm.frames[i].function);
+    }
+
+    // mark all open upvalues
+    // (closed upvalues are marked when we traverse the closure objects)
+    for (ObjUpvalue* upvalue = vm.openUpvalues; upvalue != NULL; upvalue = upvalue->next){
+        markObject((Obj*)upvalue);
+    }
+    
+    // mark all global variables
+    markTable(&vm.globals);
+
+    // mark compiler roots
+    markCompilerRoots();
+}
+
+static void blackenObject(Obj* object){
+    #ifdef DEBUG_LOG_GC
+    printf("%p blacken ", (void*)object);
+    printValue(OBJ_VAL(object));
+    printf("\n");
+    #endif
+
+    switch(object->type){
+        case OBJ_NATIVE:
+        case OBJ_STRING:
+            break;    // Nothing additional to mark
+        case OBJ_UPVALUE:
+            markValue(((ObjUpvalue*)object)->closed);    // Mark closed field
+            break;
+        case OBJ_FUNCTION: {
+            // mark name, constants used
+            ObjFunction* function = (ObjFunction*)object;
+            markObject((Obj*)function->name);
+            markArray(&function->chunk.constants);
+            break;
+        }
+        case OBJ_CLOSURE: {
+            // mark associated function and upvalues
+            ObjClosure* closure = (ObjClosure*)object;
+            markObject((Obj*)closure->function);
+            for (int i = 0; i < closure->upvalueCount; i++){
+                markObject((Obj*)closure->upvalues[i]);
+            }
+            break;
+        }
+    }
+}
+static void traceReferences(){
+    while (vm.grayCount > 0){
+        // pop one object from the stack, trace out all its contents
+        Obj* object = vm.grayStack[--vm.grayCount];
+        blackenObject(object);
+    }
+}
+
+void sweep(){
+    Obj* previous = NULL;
+    Obj* object = vm.objects;
+    while (object != NULL) {
+        if (object->isMarked){
+            // reset isMarked flag for next collection
+            object->isMarked = false;
+            previous = object;
+            object = object->next;
+        } else {
+            // to be deleted.
+            Obj* unreached = object;
+            object = object->next;
+            // relink linked list
+            if (previous != NULL) {
+                previous->next = object;
+            } else {
+                vm.objects = object;
+            }
+            freeObject(unreached);
+        }
+    }
+}
+
+void collectGarbage(){
+    // triggers mark-and-sweep garbage collection
+    // can be triggered during compile-time and runtime
+
+    #ifdef DEBUG_LOG_GC
+    printf("--gc begin--\n");
+    #endif
+
+    markRoots();
+    traceReferences();
+    tableRemoveWhite(&vm.strings);
+    sweep();
+
+    #ifdef DEBUG_LOG_GC
+    printf("-- gc end --\n");
+    #endif
 }
