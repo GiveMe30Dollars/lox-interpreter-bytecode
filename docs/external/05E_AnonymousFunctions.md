@@ -1,10 +1,15 @@
 # 05E: Anonymous Functions (Lambdas)
 
-Anonymous functions expressions, otherwise known as lambdas, start with the `fun` keyword, followed by parentheses enclosing a set of parameters, followed by braces enclosing a single expression for the body, the value of which is automatically returned.
+Anonymous functions expressions, otherwise known as lambdas, start with the `fun` keyword, followed by parentheses enclosing a set of parameters, followed by braces enclosing either a sequence of declarations, or a single expression for the body, the value of which is automatically returned.
 
 ```
-var product = fun (m, n) { m * n };
-print product(3, 2);    // 6.
+var sum = fun (m, n) {
+    // You can write any declarations or statements here.
+    return m + n;
+};
+var product = fun (m, n) { m * n };    // Limited to one expression.
+print sum(5, 2);        // 7
+print product(3, 2);    // 6
 ```
 
 You may use this to create a quick function to pass as an argument to another function call:
@@ -13,14 +18,26 @@ You may use this to create a quick function to pass as an argument to another fu
 array.reduce( fun(a,b){a + b} );
 ```
 
-Note that due to existing Lox syntax rules, an anonymous function as a standalone expression is invalid syntax.  
-(And you couldn't do much with it anyways because you cannot call it, because it isn't bound to an identifier or assigned to a variable.)
+Note that due to existing Lox syntax rules for defining named functions, an anonymous function as a standalone expression is invalid syntax:  
 
 ```
 fun (m, n){ m + n };
 // Error at '(':  Expect function name.
 ```
 
-Anonymous functions also support closures.
+Consider wrapping the anonymous function in parentheses:
+
+```
+(fun (m,n){ m + n });
+// This won't throw a compile error. It's just not particularly useful since we can't access it.
+```
+
+Unlike named functions, anonymous functions may be called as soon as they are defined using the typical call syntax `()`:
+
+```
+(fun () { print "Self-calling!"; })();
+```
+
+Anonymous functions, like named functions, supports closures.
 
 Refer to Document [05I](../internal/05I_Lambdas.md) for implementation details.

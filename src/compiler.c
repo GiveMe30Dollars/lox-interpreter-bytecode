@@ -155,10 +155,10 @@ static void consume(TokenType type, const char* message){
     }
     errorAtCurrent(message);
 }
-static bool check (TokenType type){
+static bool check(TokenType type){
     return parser.current.type == type;
 }
-static bool match (TokenType type){
+static bool match(TokenType type){
     if (!check(type)) return false;
     advance();
     return true;
@@ -180,6 +180,24 @@ static void synchronize(){
         }
         advance();
     }
+}
+static inline bool isStatement(){
+    // returns true if the current token matches a keyword that indicates the beginning of a statement
+    switch(parser.current.type){
+        case TOKEN_PRINT:
+        case TOKEN_VAR:
+        case TOKEN_IF:
+        case TOKEN_WHILE:
+        case TOKEN_FOR:
+        case TOKEN_FUN:
+        case TOKEN_CLASS:
+        case TOKEN_RETURN:
+        case TOKEN_BREAK:
+        case TOKEN_CONTINUE:
+            return true;
+        default: ;    // Fall through
+    }
+    return false;
 }
 
 
@@ -924,10 +942,20 @@ static void function(FunctionType type){
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
 
     consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
-    if (type == TYPE_LAMBDA){
+    if (type == TYPE_LAMBDA && !isStatement()){
+        // if the current keyword does not indicate a statement, attempt to parse as expression
+        // if not end of expression (TOKEN_RIGHT_BRACE), is statement:
+        // consume semicolon and parse block.
         expression();
-        emitByte(OP_RETURN);
-        consume(TOKEN_RIGHT_BRACE, "Expect '}' after function body.");
+        if (match(TOKEN_RIGHT_BRACE)){
+            // end of expression.
+            emitByte(OP_RETURN);
+        } else {
+            // statements, of which the first is an expression
+            consume(TOKEN_SEMICOLON,  "Expect ';' after expression.");
+            emitByte(OP_POP);
+            block();
+        }
     } else {
         block();
     }

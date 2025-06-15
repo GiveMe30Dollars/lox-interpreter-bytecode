@@ -60,26 +60,34 @@ static void lambda(bool canAssign){
 
 Since function declarations parse earlier than this, it is correctly shadowed by `functionDeclaration()`, which *does* require a name identifier.
 
-We add a new function type `TYPE_LAMBDA`, which acts as a flag to tell the compiler to get a random name, and to limit the body to a single expression. An `OP_RETURN` is emitted so it is equivalent to `return expression`:
+We add a new function type `TYPE_LAMBDA`, which acts as a flag to tell the compiler to get a random name, and to allow the body to be parsed as a single expression. An `OP_RETURN` is emitted if it is an expression body so it is equivalent to `return expression`:
 
 ```
 // in initCompiler():
-    // ...
+
     if (type == TYPE_LAMBDA){
         current->function->name = lambdaString();
     } else if (type != TYPE_SCRIPT) {
         // get function name
     }
+
     // ...
-    consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
-    if (type == TYPE_LAMBDA) {
+
+    if (type == TYPE_LAMBDA && !isStatement()){
         expression();
-        emitByte(OP_RETURN);
-        consume(TOKEN_RIGHT_BRACE, "Expect '}' after function body.");
+        if (match(TOKEN_RIGHT_BRACE)){
+            // end of expression.
+            emitByte(OP_RETURN);
+        } else {
+            consume(TOKEN_SEMICOLON,  "Expect ';' after expression.");
+            emitByte(OP_POP);
+            block();
+        }
     } else {
         block();
     }
-    // ...
 ```
+
+`isStatement` is a static inline helper function for a switch-table lookup; we return true if any keyword that could start a statement is found in `parser.current` (such as `TOKEN_VAR`, `TOKEN_IF`, `TOKEN_FUN` etc.) and false otherwise. This all but ensures the body is either an expression or an expression *statement* (terminated with `TOKEN_SEMICOLON`).
 
 Aaaaaaand we done!
