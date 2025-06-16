@@ -59,4 +59,28 @@ Similarly, when we call `addUpvalue`, take in `isConst` from either the chained 
 Do all that, and... the compiler will throw an error if we declare a constant global variable.  
 Sweet!
 
-## Compile-Time Check
+## Compile-Time Checking
+
+The reason we even added this.
+
+When we resolve a named variable to either local, or an upvalue, we also keep a corresponding `Local*` and `Upvalue*` pointer. Then, when we find a set operation, we do a check to ensure that `isConst` is not true. If it is, throw a compile-time error at the assignment operator. This is usually `=`, but in my case I also have compound assignments `+=`, `-=`, `*=` and `/=`.
+
+And with that, it is done.
+
+## ...Was It Worth It?
+
+We just made the compiler *slower*, and what for it?
+
+The "compromise" we made with only checking local variables is that it doesn't fundamentally solve the problem that `const` tries to solve: to stop someone from assigning to or *overwriting* something important. That doesn't typically happen with local variables due to how shadowing works, but it *absolutely does* for global variables, especially if said global variable is living in another file.
+
+Lox has no modularity story. My naive approach to `import` and STL functions would just be to dump the contents of the file into the scope you called `import` in. It is *absolutely possible* to overwrite a native function and lose access to it for the rest of the program's lifetime. The `const` keyword doesn't solve this *because* I didn't let it apply to global variables.
+
+Fields can still be written and rewritten. Changing *that* would be a breaking change to Lox. I am not ready to do that.
+
+Honestly, important things like `Math.pi` would probably be written as static property getters in their parent classes such as `Math`. You *could* overwrite the keyword Math, and that *would* cause issues, but you can't overwrite `Math.pi` and break the module across your entire VM. Since Lox classes are closed, once you define a method, that's it. No alterations.
+
+Python does this. It even keeps the original `Math` module around so you can access it if you delete the shadowing variable.
+
+I think the takeaway is to look into how modularity works.
+
+All the work around this has been segmented into the branch `const-keyword`. I may or may not merge this into the master branch. Time will tell.
