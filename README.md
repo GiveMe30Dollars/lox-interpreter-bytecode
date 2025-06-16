@@ -5,7 +5,7 @@ This is an ongoing C implemetation of the Lox interpreter as described in the se
 
 Sister project to the AST-based Lox Interpreter: https://github.com/GiveMe30Dollars/lox-interpreter-ast
 
-While the code is written in C, it is forwards-compatible with the C++ compiler and may be compiled as a C++ project.
+While the code is written in C, it is written to be forward-compatible with the C++ compiler and may be compiled as a C++ project.
 
 For further information, check the [documentation](docs).
 

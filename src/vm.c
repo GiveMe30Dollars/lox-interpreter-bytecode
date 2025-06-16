@@ -261,8 +261,10 @@ static bool bindMethod(ObjClass* klass, ObjString* name){
     // returns true if method is found and bounded
     // resultant ObjBoundMethod is pushed to the stack
     Value method;
-    if (!tableGet(&klass->methods, OBJ_VAL(name), &method))
+    if (!tableGet(&klass->methods, OBJ_VAL(name), &method)){
+        runtimeError("Undefined property '%s'.", name->chars);
         return false;
+    }
     ObjBoundMethod* bound = newBoundMethod(peek(0), AS_OBJ(method));
     pop();
     push(OBJ_VAL(bound));
@@ -297,10 +299,10 @@ static bool invoke(ObjString* name, int argCount){
 
 static InterpreterResult run(){
 
-    // Get current call frame (of <script>)
+    // Get current call frame
     CallFrame* frame = &vm.frames[vm.frameCount - 1];
 
-    // Store instruction pointer as native CPU register (TODO)
+    // Store instruction pointer as native CPU register
     register uint8_t* ip = frame->ip;
 
     // Preprocessor macros for reading bytes
@@ -519,6 +521,7 @@ static InterpreterResult run(){
                 // then push result
                 vm.stackTop = frame->slots;
                 push(result);
+                // update frame and ip
                 frame = &vm.frames[vm.frameCount - 1];
                 ip = frame->ip;
                 break;
@@ -542,11 +545,10 @@ static InterpreterResult run(){
                     push(value);
                     break;
                 }
-                if (bindMethod(instance->klass, name)) break;
-
-                // No field or method of that name.
-                runtimeError("Undefined property '%s'.", name->chars);
-                return INTERPRETER_RUNTIME_ERROR;
+                if (!bindMethod(instance->klass, name)){
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
+                break;
             }
             case OP_SET_PROPERTY: {
                 if (!IS_INSTANCE(peek(1))){
@@ -573,6 +575,41 @@ static InterpreterResult run(){
                 if (!invoke(method, argCount)){
                     return INTERPRETER_RUNTIME_ERROR;
                 }
+                // update frame and ip
+                frame = &vm.frames[vm.frameCount - 1];
+                ip = frame->ip;
+                break;
+            }
+            case OP_INHERIT: {
+                Value superclass = peek(1);
+                if (!IS_CLASS(superclass)){
+                    runtimeError("Superclass must be a class.");
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
+                ObjClass* subclass = AS_CLASS(peek(0));
+                tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
+                // Pop subclass. Superclass remains as local variable.
+                pop();
+                break;
+            }
+            case OP_GET_SUPER: {
+                ObjString* name = READ_STRING();
+                ObjClass* superclass = AS_CLASS(pop());
+                if (!bindMethod(superclass, name)){
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
+                break;
+            }
+            case OP_SUPER_INVOKE: {
+                ObjString* method = READ_STRING();
+                int argCount = READ_BYTE();
+                ObjClass* superclass = AS_CLASS(pop());
+                // store ip from register to call frame (return address)
+                frame->ip = ip;
+                if (!invokeFromClass(superclass, method, argCount)){
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
+                // update frame and ip
                 frame = &vm.frames[vm.frameCount - 1];
                 ip = frame->ip;
                 break;

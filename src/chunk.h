@@ -27,12 +27,10 @@ typedef enum {
     OP_EQUAL,
     OP_GREATER,
     OP_LESS,
-
     OP_ADD,
     OP_SUBTRACT,
     OP_MULTIPLY,
     OP_DIVIDE,
-
     OP_NOT,
     OP_NEGATE,
     OP_UNARY_PLUS,
@@ -51,7 +49,10 @@ typedef enum {
     OP_GET_PROPERTY,
     OP_SET_PROPERTY,
     OP_METHOD,
-    OP_INVOKE
+    OP_INVOKE,
+    OP_INHERIT,
+    OP_GET_SUPER,
+    OP_SUPER_INVOKE
 } Opcode;
 
 typedef struct {
