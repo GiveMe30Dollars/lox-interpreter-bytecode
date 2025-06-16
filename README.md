@@ -1,4 +1,10 @@
-# Bytecode-Based Lox Interpreter
+# BRANCH: const-keyword
+
+This branch implements the `const` keyword for variable declarations in local scope. Assigning to a constant variable is a compile-time error.
+
+This branch will be behind the `master` branch due to low maintenance.
+
+## Bytecode-Based Lox Interpreter
 
 This is an ongoing C implemetation of the Lox interpreter as described in the second half of the book:  
 - **"Crafting Interpreters"**: https://craftinginterpreters.com/ by Robert Nystrom.
@@ -19,7 +25,7 @@ For further information, check the [documentation](docs).
 <img src=https://github.com/user-attachments/assets/5e172e18-70e8-4ae0-b999-658f90d3c559 />
 </p>
 
-**Current status:** Implemented global and local variables, control flow, functions and closures.  
+**Current status:** Implemented global and local variables, control flow, functions and closures, classes and methods.  
 Additionally added ternary conditional (+ Elvis operator), compound assignment operators, break and continue statements for loops, anonymous function expressions.
 
 ## Usage  
