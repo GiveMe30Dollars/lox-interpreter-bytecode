@@ -24,7 +24,15 @@ typedef struct {
     Token name;
     int depth;
     bool isCaptured;
+    bool isConst;
 } Local;
+
+typedef struct {
+    uint8_t index;
+    bool isLocal;
+    bool isConst;
+} Upvalue;
+
 typedef enum {
     TYPE_SCRIPT,
     TYPE_FUNCTION,
@@ -32,11 +40,6 @@ typedef enum {
     TYPE_METHOD,
     TYPE_INITIALIZER
 } FunctionType;
-
-typedef struct {
-    uint8_t index;
-    bool isLocal;
-} Upvalue;
 
 // For break and continue:
 // A loop needs to keep track of its starting position for continue
@@ -500,7 +503,7 @@ static bool identifiersEqual(Token* a, Token* b){
     if (a->length != b->length) return false;
     return (memcmp(a->start, b->start, a->length) == 0);
 }
-static void addLocal(Token name){
+static void addLocal(Token name, bool isConst){
     if (current->localCount == UINT8_COUNT){
         error("Too many local variables in function.");
         return;
@@ -509,6 +512,7 @@ static void addLocal(Token name){
     local->name = name;
     local->depth = -1;
     local->isCaptured = false;
+    local->isConst = isConst;
 }
 static void markInitialized(){
     // specific to local variables
@@ -531,7 +535,7 @@ static int resolveLocal(Compiler* compiler, Token* name){
     return -1;
 }
 
-static int addUpvalue(Compiler* compiler, int slotIdx, bool isLocal){
+static int addUpvalue(Compiler* compiler, int slotIdx, bool isLocal, bool isConst){
     int upvalueCount = compiler->function->upvalueCount;
     for (int i = 0; i < upvalueCount; i++){
         Upvalue* upvalue = &compiler->upvalues[i];
@@ -542,8 +546,9 @@ static int addUpvalue(Compiler* compiler, int slotIdx, bool isLocal){
         error("Too many closure variables in function.");
         return 0;
     }
-    compiler->upvalues[upvalueCount].isLocal = isLocal;
     compiler->upvalues[upvalueCount].index = slotIdx;
+    compiler->upvalues[upvalueCount].isLocal = isLocal;
+    compiler->upvalues[upvalueCount].isConst = isConst;
     return compiler->function->upvalueCount++;
 }
 static int resolveUpvalue(Compiler* compiler, Token* name){
@@ -554,19 +559,21 @@ static int resolveUpvalue(Compiler* compiler, Token* name){
     int local = resolveLocal(compiler->enclosing, name);
     if (local != -1){
         compiler->enclosing->locals[local].isCaptured = true;
-        return addUpvalue(compiler, (uint8_t)local, true);
+        bool isConst = compiler->enclosing->locals[local].isConst;
+        return addUpvalue(compiler, (uint8_t)local, true, isConst);
     }
 
     // Recursive case: if found, add to this compiler as nonlocal upvalue
     int upvalue = resolveUpvalue(compiler->enclosing, name);
     if (upvalue != -1){
-        return addUpvalue(compiler, (uint8_t)upvalue, false);
+        bool isConst = compiler->enclosing->upvalues[upvalue].isConst;
+        return addUpvalue(compiler, (uint8_t)upvalue, false, isConst);
     }
 
     return -1;
 }
 
-static void declareVariable(){
+static void declareVariable(bool isConst){
     // specific to local variables
     // asserts no existing variable in this scope has the same name, then adds to locals
     if (current->scopeDepth == 0) return;
@@ -581,7 +588,7 @@ static void declareVariable(){
             return;
         }
     }
-    addLocal(*name);
+    addLocal(*name, isConst);
 }
 static void defineVariable(uint8_t global){
     // specific to global variables
@@ -592,26 +599,32 @@ static void defineVariable(uint8_t global){
     }
     emitBytes(OP_DEFINE_GLOBAL, global);
 }
-static uint8_t parseVariable(const char* errorMessage){
+static uint8_t parseVariable(const char* errorMessage, Token* constIdentifier){
     // parses the variable name, then:
     // global scope: returns the constant idx to the variable name
     // local scope: declares the variable name in the Compiler locals struct
     consume(TOKEN_IDENTIFIER, errorMessage);
-    declareVariable();
+    declareVariable(constIdentifier != NULL);
     if (current->scopeDepth > 0) return 0;
+    if (constIdentifier != NULL)
+        errorAt(constIdentifier, "Cannot declare constant global variable.");
     return identifierConstant(&parser.previous);
 }
 
 
 static void namedVariable(Token name, bool canAssign){
     uint8_t getOp, setOp;
+    Local* local = NULL;
+    Upvalue* upvalue = NULL;
     int arg = resolveLocal(current, &name);
     if (arg != -1){
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
+        local = &current->locals[arg];
     } else if ((arg = resolveUpvalue(current, &name)) != -1){
         getOp = OP_GET_UPVALUE;
         setOp = OP_SET_UPVALUE;
+        upvalue = &current->upvalues[arg];
     } else {
         arg = identifierConstant(&name);
         getOp = OP_GET_GLOBAL;
@@ -626,6 +639,8 @@ static void namedVariable(Token name, bool canAssign){
                 // direct assignment
                 // evaluate expression and set variable to value on stack
                 advance();
+                if ((local != NULL && local->isConst) || (upvalue != NULL && upvalue->isConst))
+                    error("Cannot assign to constant variable.");
                 expression();
                 emitBytes(setOp, (uint8_t)arg);
                 return;
@@ -642,6 +657,8 @@ static void namedVariable(Token name, bool canAssign){
             // apply operation and set variable to value on stack
             emitBytes(getOp, arg);
             advance();
+            if ((local != NULL && local->isConst) || (upvalue != NULL && upvalue->isConst))
+                error("Cannot assign to constant variable.");
             expression();
             emitByte((uint8_t)assignInstruction);
             emitBytes(setOp, arg);
@@ -753,8 +770,8 @@ static bool tryParseExpression(TokenType terminator){
 
 
 // PARSER STATEMENT FUNCTIONS
-static void varDeclaration(){
-    uint8_t global = parseVariable("Expect variable name.");
+static void varDeclaration(Token* constIdentifier){
+    uint8_t global = parseVariable("Expect variable name.", constIdentifier);
 
     // Evaluate and emit bytecode for initialization value first
     if (match(TOKEN_EQUAL)){
@@ -858,7 +875,7 @@ static void forStatement(){
     } else if (match(TOKEN_VAR)){
         // Save name and position (must be local variable)
         loopVariableName = parser.current;
-        varDeclaration();
+        varDeclaration(NULL);
         loopVariable = current->localCount - 1;
     } else {
         exprStatement();
@@ -897,7 +914,7 @@ static void forStatement(){
     if (loopVariable != -1){
         beginScope();
         emitBytes(OP_GET_LOCAL, loopVariable);
-        addLocal(loopVariableName);
+        addLocal(loopVariableName, false);
         markInitialized();
         innerVariable = current->localCount - 1;
     }
@@ -985,7 +1002,7 @@ static void function(FunctionType type){
             if (current->function->arity > 255){
                 error("Cannot have more than 255 parameters.");
             }
-            uint8_t constant = parseVariable("Expect parameter name.");
+            uint8_t constant = parseVariable("Expect parameter name.", NULL);
             defineVariable(constant);
         } while (match(TOKEN_COMMA));
     }
@@ -1013,7 +1030,7 @@ static void function(FunctionType type){
     }
 }
 static void functionDeclaration(){
-    uint8_t global = parseVariable("Expect function name.");
+    uint8_t global = parseVariable("Expect function name.", NULL);
     markInitialized();
     function(TYPE_FUNCTION);
     defineVariable(global);
@@ -1056,7 +1073,7 @@ static void classDeclaration(){
     consume(TOKEN_IDENTIFIER, "Expect class name.");
     Token className = parser.previous;
     uint8_t nameConstant = identifierConstant(&parser.previous);
-    declareVariable();
+    declareVariable(false);
 
     emitBytes(OP_CLASS, nameConstant);
     defineVariable(nameConstant);
@@ -1087,6 +1104,14 @@ static void this_ (bool canAssign){
     variable(false);
 }
 
+static void constDeclaration(){
+    Token constToken = parser.previous;
+    if (match(TOKEN_VAR)){
+        varDeclaration(&constToken);
+    }
+    else error("Expect declaration after 'const'.");
+}
+
 
 static void expression(){
     parsePrecedence(PREC_ASSIGNMENT);
@@ -1114,12 +1139,14 @@ static void statement(){
     else exprStatement();
 }
 static void declaration(){
-    if (match(TOKEN_FUN)){
+    if (match(TOKEN_CONST)){
+        constDeclaration();
+    } else if (match(TOKEN_FUN)){
         functionDeclaration();
     } else if (match(TOKEN_CLASS)){
         classDeclaration();
     } else if (match(TOKEN_VAR)){
-        varDeclaration();
+        varDeclaration(NULL);
     } else {
         statement();
     }
