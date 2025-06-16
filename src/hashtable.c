@@ -66,7 +66,7 @@ static Entry* findEntry(Entry* entries, int capacity, Value key){
     // tombstone or an empty bucket, whichever is found first (search failed)
     // the probing is only terminated at an empty bucket for open addressing.
 
-    uint32_t index = getHash(key) % capacity;
+    uint32_t index = getHash(key) & (capacity - 1);
     Entry* tombstone = NULL;
     for (;;){
         // Due to hash tables never being completely full, not endless
@@ -82,7 +82,7 @@ static Entry* findEntry(Entry* entries, int capacity, Value key){
         }
         
         // continue linear probing
-        index = (index + 1) % capacity;
+        index = (index + 1) & (capacity - 1);
     }
 }
 
@@ -181,7 +181,7 @@ ObjString* tableFindString(HashTable* table, const char* string, int length, uin
 
     if (table->capacity == 0) return NULL;
 
-    uint32_t index = hash % table->capacity;
+    uint32_t index = hash & (table->capacity - 1);
     for (;;){
         Entry* entry = &table->entries[index];
         if (IS_EMPTY(entry->key)){
@@ -194,7 +194,7 @@ ObjString* tableFindString(HashTable* table, const char* string, int length, uin
             // string found.
             return AS_STRING(entry->key);
         }
-        index = (index + 1) % table->capacity;
+        index = (index + 1) & (table->capacity - 1);
     } 
 }
 
