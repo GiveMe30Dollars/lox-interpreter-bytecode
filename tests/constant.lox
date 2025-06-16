@@ -1,0 +1,18 @@
+// const var i = 0;
+// Expect: [line 1] Error at 'const': Cannot declare constant global variable.
+
+{
+    const var pi = 3.1415;
+    print pi * -1;    // Reading is fine
+    // pi = 4;           // Writing is not
+    // pi += 1;          // Neither is mutation
+    // Expect: [line 7] Error at '=': Cannot assign to constant variable.
+    // Expect: [line 8] Error at '+=': Cannot assign to constant variable.
+
+    {
+        // You can still shadow constant variables with mutable variables
+        var pi = 2;
+        pi *= 2;
+        print "Proudly incorrect: ${pi}";
+    }
+}

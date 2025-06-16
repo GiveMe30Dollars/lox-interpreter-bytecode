@@ -3,11 +3,15 @@
 The Lox VM is a primarily stack-based virtual machine of size 256.  
 For the sake of brevity, stack refers to `vm.stack`.  
 Global variables are stored in the `vm.globals` hashtable.
-(TODO: extend stack to 24-bit limit?)
+
+The following arguments are shorthand:
+- `idx`: A single-byte operand representing a generic number index to a specified container.
+- `cidx`: A special form of `idx` that points to the value constant stored in `chunk->constants[cidx]`. Single-byte operand.
+- `byteX2`: A two-byte operand. Typically used in jump operations.
 
 The currently implemented operation codes (opcodes) are as follows:
 
-- **`OP_CONSTANT`** `idx` : Pushes the value of `chunk->constants[idx]` onto the stack.
+- **`OP_CONSTANT`** `cidx` : Pushes the value of `chunk->constants[cidx]` onto the stack.
 - **`OP_NIL`**: Pushes Lox `nil` onto the stack.
 - **`OP_TRUE`**: Pushes Lox `true` onto the stack.
 - **`OP_FALSE`**: Pushes Lox `false` onto the stack.
@@ -15,9 +19,9 @@ The currently implemented operation codes (opcodes) are as follows:
 - **`OP_POP`**: Pops the topmost element off the stack.
 - **`OP_POPN`** `num`: Pops the topmost `num` elements off the stack.
 
-- **`OP_DEFINE_GLOBAL`** `idx`: Defines a Lox global variable of name `chunk->constants[idx]` with value of the stack top.
-- **`OP_GET_GLOBAL`** `idx`: Gets the value of a Lox global variable of name `chunk->constants[idx]`.
-- **`OP_SET_GLOBAL`** `idx`: Sets the value of a Lox global variable of name `chunk->constants[idx]` to the value of the stack top.
+- **`OP_DEFINE_GLOBAL`** `cidx`: Defines a Lox global variable of name `chunk->constants[cidx]` with value of the stack top.
+- **`OP_GET_GLOBAL`** `cidx`: Gets the value of a Lox global variable of name `chunk->constants[cidx]`.
+- **`OP_SET_GLOBAL`** `cidx`: Sets the value of a Lox global variable of name `chunk->constants[cidx]` to the value of the stack top.
 - **`OP_GET_LOCAL`** `idx`: Gets the value of a Lox local variable from `frame->slots[idx]`.
 - **`OP_SET_LOCAL`** `idx`:  Sets the value of a Lox local variable at `frame->slots[idx]` to the value of the stack top.
 - **`OP_GET_UPVALUE`** `idx`: Gets the value of a Lox upvalue from `*frame->closure->upvalues[idx]->location`.
@@ -41,9 +45,13 @@ The currently implemented operation codes (opcodes) are as follows:
 - **`OP_JUMP`** `byteX2`: Moves the instruction pointer (`vm.ip`) forwards by `byteX2` bytes.
 - **`OP_LOOP`** `byteX2`: Moves the instruction pointer (`vm.ip`) backwards by `byteX2` bytes.
 
-- **`OP_CALL`** `argc`: The stack is arranged such that there exists a `function` object, followed by `argc` arguments, at the top of the stack. Call `function` by pushing a new CallFrame onto the call stack for these values.
+- **`OP_CALL`** `argc`: The stack is arranged such that there exists a `callable` object, followed by `argc` arguments, at the top of the stack.
+  - For Lox functions, call `callable` by pushing a new CallFrame onto the call stack for these values.
+  - For Lox native functions, call `callable` inplace, without pushing a new CallFrame. The result is written to the stack.
+  - For Lox classes, create a new Lox instance inplace of `callable`, then call the initializer of the class.
+  - For Lox bound methods, set reserved slot 0 to the bound instance, then call the contained function.
 
-- **`OP_CLOSURE`** `idx` `upvalueIsLocal` `upvalueSlot` `...` : Creates an `ObjClosure*` at runtime from the function at `chunk->constants[idx]`. Then, for each upvalue defined in that function, take a pair of byte operands to capture the upvalues: 
+- **`OP_CLOSURE`** `cidx` `upvalueIsLocal` `upvalueSlot` `...` : Creates an `ObjClosure*` at runtime from the function at `chunk->constants[cidx]`. Then, for each upvalue defined in that function, take a pair of byte operands to capture the upvalues: 
   - `upvalueIsLocal` determines whether the VM should search for a local variable: 
     - `1` for walking through the current open upvalues, and creating a new one if not currently present, 
     - `0` for inheriting an upvalue from the current enclosing function.
@@ -52,4 +60,10 @@ The currently implemented operation codes (opcodes) are as follows:
     - for inherited upvalues, the index in `frame->closure->upvalues`.
 -  **`OP_CLOSE_UPVALUE`**: closes an upvalue by popping it from the stack and transferring it into the `ObjUpvalue*` struct on the heap.
 
-- **`OP_RETURN`**: Pops the call stack and returns the topmost element in the popped frame. Exit the VM and return `INTERPRETER_OK` if the popped frame is executed top-level code.
+- **`OP_RETURN`**: Pops the call stack and returns the topmost element in the popped frame. Exit the VM and return `INTERPRETER_OK` if the popped frame is top-level code.
+
+- **`OP_CLASS`** `cidx`: Declares a new Lox class of name `chunk->constants[cidx]`
+- **`OP_GET_PROPERTY`** `cidx`: Gets the property of identifier `chunk->constants[cidx]` for the instance at the top of the stack. Fields shadow methods.
+- **`OP_SET_PROPERTY`** `cidx` : Sets the field of identifier `chunk->constants[cidx]` for the instance in the topmost 2nd slot to the value at the top of the stack. Pops the instance from the stack.
+- **`OP_METHOD`**: Defines a function object at the top of the stack to be a method of the class underneath. Pops the function object.
+- **`OP_INVOKE`** `cidx` `argc`: Optimized combination for `OP_GET_PROPERTY` and `OP_CALL`.
