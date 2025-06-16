@@ -93,8 +93,8 @@ ObjString* lambdaString(){
     return takeString(buffer, length);
 }
 
-// OBJUPVALUE METHODS
 
+// OBJUPVALUE METHODS
 ObjUpvalue* newUpvalue(Value* location){
     ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
     upvalue->location = location;
@@ -103,9 +103,7 @@ ObjUpvalue* newUpvalue(Value* location){
     return upvalue;
 }
 
-
 // OBJFUNCTION METHODS
-
 ObjFunction* newFunction(){
     ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
     function->arity = 0;
@@ -116,7 +114,6 @@ ObjFunction* newFunction(){
 }
 
 // OBJFUNCTION METHODS
-
 ObjNative* newNative(NativeFn function, int arity, ObjString* name){
     ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
     native->function = function;
@@ -126,7 +123,6 @@ ObjNative* newNative(NativeFn function, int arity, ObjString* name){
 }
 
 // OBJCLOSURE METHODS
-
 ObjClosure* newClosure(ObjFunction* function){
     ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, function->upvalueCount);
     for (int i = 0; i < function->upvalueCount; i++){
@@ -137,6 +133,30 @@ ObjClosure* newClosure(ObjFunction* function){
     closure->upvalueCount = function->upvalueCount;
     closure->function = function;
     return closure;
+}
+
+// OBJCLASS METHODS
+ObjClass* newClass(ObjString* name){
+    ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+    klass->name = name;
+    initTable(&klass->methods);
+    return klass;
+}
+
+// OBJINSTANCE METHODS
+ObjInstance* newInstance(ObjClass* klass){
+    ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
+    instance->klass = klass;
+    initTable(&instance->fields);
+    return instance;
+}
+
+// OBJBOUNDMETHOD METHODS
+ObjBoundMethod* newBoundMethod(Value receiver, Obj* method){
+    ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
+    bound->receiver = receiver;
+    bound->method = method;
+    return bound;
 }
 
 // OBJECT GENERAL METHODS
@@ -160,6 +180,12 @@ void printObject(Value value){
             printf("<fn %s>", AS_NATIVE(value)->name->chars); break;
         case OBJ_CLOSURE:
             printFunction(AS_CLOSURE(value)->function); break;
+        case OBJ_CLASS:
+            printf("%s", AS_CLASS(value)->name->chars); break;
+        case OBJ_INSTANCE:
+            printf("%s instance", AS_INSTANCE(value)->klass->name->chars); break;
+        case OBJ_BOUND_METHOD:
+            printObject(OBJ_VAL(AS_BOUND_METHOD(value)->method));
         default: break;    // Unreachable.
     }
 }

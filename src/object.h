@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "chunk.h"
+#include "hashtable.h"
 #include "value.h"
 
 #define OBJ_TYPE(value) (objType(AS_OBJ(value)))
@@ -13,7 +14,10 @@ typedef enum {
     OBJ_UPVALUE,
     OBJ_FUNCTION,
     OBJ_NATIVE,
-    OBJ_CLOSURE
+    OBJ_CLOSURE,
+    OBJ_CLASS,
+    OBJ_INSTANCE,
+    OBJ_BOUND_METHOD
 } ObjType;
 
 #ifdef OBJ_HEADER_COMPRESSION
@@ -137,16 +141,44 @@ typedef struct {
 ObjClosure* newClosure(ObjFunction* function);
 
 
+// ObjClass encapsulates a user-defined Lox class
+typedef struct {
+    Obj obj;
+    ObjString* name;
+    HashTable methods;
+} ObjClass;
+ObjClass* newClass(ObjString* name);
+
+// ObjInstances are created when an ObjClass is called
+typedef struct {
+    Obj obj;
+    ObjClass* klass;
+    HashTable fields;
+} ObjInstance;
+ObjInstance* newInstance(ObjClass* klass);
+
+// ObjBoundMethods bind `this` and `super` to the instance where this method is accessed from
+typedef struct {
+    Obj obj;
+    Value receiver;
+    // can be ObjFunction or ObjClosure
+    Obj* method;
+} ObjBoundMethod;
+ObjBoundMethod* newBoundMethod(Value receiver, Obj* method);
+
 
 // OBJECT GENERAL FUNCTIONS
 void printFunction(ObjFunction* function);
 void printObject(Value value);
 
 // TYPE CHECK MACROS / INLINE FUNCTIONS
-#define IS_STRING(value)     (isObjType(value, OBJ_STRING))
-#define IS_FUNCTION(value)   (isObjType(value, OBJ_FUNCTION))
-#define IS_NATIVE(value)     (isObjType(value, OBJ_NATIVE))
-#define IS_CLOSURE(value)    (isObjType(value, OBJ_CLOSURE))
+#define IS_STRING(value)       (isObjType(value, OBJ_STRING))
+#define IS_FUNCTION(value)     (isObjType(value, OBJ_FUNCTION))
+#define IS_NATIVE(value)       (isObjType(value, OBJ_NATIVE))
+#define IS_CLOSURE(value)      (isObjType(value, OBJ_CLOSURE))
+#define IS_CLASS(value)        (isObjType(value, OBJ_CLASS))
+#define IS_INSTANCE(value)     (isObjType(value, OBJ_INSTANCE))
+#define IS_BOUND_METHOD(value) (isObjType(value, OBJ_BOUND_METHOD));
 
 static inline bool isObjType(Value value, ObjType type){
     return IS_OBJ(value) && (objType(AS_OBJ(value)) == type);
@@ -154,10 +186,13 @@ static inline bool isObjType(Value value, ObjType type){
 
 // CAST MACROS
 // (does not assert type!)
-#define AS_STRING(value)     ((ObjString*)AS_OBJ(value))
-#define AS_CSTRING(value)    (((ObjString*)AS_OBJ(value))->chars)
-#define AS_FUNCTION(value)   ((ObjFunction*)AS_OBJ(value))
-#define AS_NATIVE(value)     ((ObjNative*)AS_OBJ(value))
-#define AS_CLOSURE(value)    ((ObjClosure*)AS_OBJ(value))
+#define AS_STRING(value)       ((ObjString*)AS_OBJ(value))
+#define AS_CSTRING(value)      (((ObjString*)AS_OBJ(value))->chars)
+#define AS_FUNCTION(value)     ((ObjFunction*)AS_OBJ(value))
+#define AS_NATIVE(value)       ((ObjNative*)AS_OBJ(value))
+#define AS_CLOSURE(value)      ((ObjClosure*)AS_OBJ(value))
+#define AS_CLASS(value)        ((ObjClass*)AS_OBJ(value))
+#define AS_INSTANCE(value)     ((ObjInstance*)AS_OBJ(value))
+#define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
 
 #endif

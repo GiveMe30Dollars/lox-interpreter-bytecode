@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "hashtable.h"
+#include "object.h"
 #include "memory.h"
 
 #define TABLE_MAX_LOAD 0.75

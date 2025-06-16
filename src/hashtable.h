@@ -3,7 +3,6 @@
 
 #include "common.h"
 #include "value.h"
-#include "object.h"
 
 // HASHING ALGORITHM (FNV-1a)
 uint32_t hashBytes(const uint8_t* key, size_t numOfBytes);

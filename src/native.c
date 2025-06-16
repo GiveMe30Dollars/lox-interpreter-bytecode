@@ -34,6 +34,10 @@ Value stringNative(int argCount, Value* args){
                     return OBJ_VAL(AS_NATIVE(value)->name);
                 case OBJ_CLOSURE:
                     return OBJ_VAL(AS_CLOSURE(value)->function->name);
+                case OBJ_CLASS:
+                    return OBJ_VAL(AS_CLASS(value)->name);
+                case OBJ_INSTANCE:
+                    return OBJ_VAL(AS_INSTANCE(value)->klass->name);
             }
         }
     }

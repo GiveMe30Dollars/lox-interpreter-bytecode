@@ -25,7 +25,9 @@ typedef struct {
     HashTable strings;
     ObjUpvalue* openUpvalues;
     Obj* objects;
+
     uint32_t hash;
+    Value initString;
 
     // Garbage collector fields (we manage this ourselves)
     size_t bytesAllocated;

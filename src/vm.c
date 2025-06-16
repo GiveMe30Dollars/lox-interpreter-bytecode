@@ -37,6 +37,8 @@ void initVM(){
     vm.openUpvalues = NULL;
     vm.objects = NULL;
     vm.hash = 0;
+    vm.initString = NIL_VAL();
+    vm.initString = OBJ_VAL(copyString("init", 4));
 
     vm.bytesAllocated = 0;
     vm.nextGC = 1024 * 1024;
@@ -52,6 +54,7 @@ void initVM(){
 void freeVM(){
     freeTable(&vm.globals);
     freeTable(&vm.strings);
+    vm.initString = NIL_VAL();
     freeObjects();
 }
 
@@ -184,12 +187,32 @@ static bool callValue(Value callee, int argCount){
                 return callFunction(AS_FUNCTION(callee), argCount);
             case OBJ_CLOSURE:
                 return callClosure(AS_CLOSURE(callee), argCount);
+            case OBJ_CLASS: {
+                ObjClass* klass = AS_CLASS(callee);
+                vm.stackTop[- argCount - 1] = OBJ_VAL(newInstance(klass));
+                // if there is an initializer, call that too.
+                Value initializer;
+                if (tableGet(&klass->methods, vm.initString, &initializer)){
+                    return callValue(initializer, argCount);
+                } else if (argCount != 0) {
+                    runtimeError("Expected 0 arguments but got %d.", argCount);
+                    return false;
+                }
+                return true;
+            }
+            case OBJ_BOUND_METHOD: {
+                ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
+                // let's "this" refer to object method is bound to
+                vm.stackTop[- argCount - 1] = bound->receiver;
+                return callValue(OBJ_VAL(bound->method), argCount);
+            }
             default: ;    // Fallthrough to failure case
         }
     }
     runtimeError("Can only call functions and classes.");
     return false;
 }
+
 
 static ObjUpvalue* captureUpvalue(Value* local){
     ObjUpvalue* prevUpvalue = NULL;
@@ -225,6 +248,50 @@ static void closeUpvalues(Value* last){
         upvalue->location = &upvalue->closed;
         vm.openUpvalues = upvalue->next;
     }
+}
+
+
+static void defineMethod(ObjString* name){
+    Value method = peek(0);
+    ObjClass* klass = AS_CLASS(peek(1));
+    tableSet(&klass->methods, OBJ_VAL(name), method);
+    pop();
+}
+static bool bindMethod(ObjClass* klass, ObjString* name){
+    // returns true if method is found and bounded
+    // resultant ObjBoundMethod is pushed to the stack
+    Value method;
+    if (!tableGet(&klass->methods, OBJ_VAL(name), &method))
+        return false;
+    ObjBoundMethod* bound = newBoundMethod(peek(0), AS_OBJ(method));
+    pop();
+    push(OBJ_VAL(bound));
+    return true;
+}
+
+
+static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount){
+    Value method;
+    if (!tableGet(&klass->methods, OBJ_VAL(name), &method)){
+        runtimeError("Undefined property '%s'", name->chars);
+        return false;
+    }
+    return callValue(method, argCount);
+}
+static bool invoke(ObjString* name, int argCount){
+    Value receiver = peek(argCount);
+    if (!IS_INSTANCE(receiver)){
+        runtimeError("Only instances have methods.");
+        return false;
+    }
+    ObjInstance* instance = AS_INSTANCE(receiver);
+    Value value;
+    if (tableGet(&instance->fields, OBJ_VAL(name), &value)){
+        // treat as regular call by replacing 'this' with function object
+        vm.stackTop[- argCount - 1] = value;
+        return callValue(value, argCount);
+    }
+    return invokeFromClass(instance->klass, name, argCount);
 }
 
 
@@ -452,6 +519,60 @@ static InterpreterResult run(){
                 // then push result
                 vm.stackTop = frame->slots;
                 push(result);
+                frame = &vm.frames[vm.frameCount - 1];
+                ip = frame->ip;
+                break;
+            }
+
+            case OP_CLASS: {
+                push(OBJ_VAL(newClass(READ_STRING())));
+                break;
+            }
+            case OP_GET_PROPERTY: {
+                if (!IS_INSTANCE(peek(0))){
+                    runtimeError("Only instances have properties.");
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
+                ObjInstance* instance = AS_INSTANCE(peek(0));
+                ObjString* name = READ_STRING();
+
+                Value value;
+                if (tableGet(&instance->fields, OBJ_VAL(name), &value)){
+                    pop();    // Instance
+                    push(value);
+                    break;
+                }
+                if (bindMethod(instance->klass, name)) break;
+
+                // No field or method of that name.
+                runtimeError("Undefined property '%s'.", name->chars);
+                return INTERPRETER_RUNTIME_ERROR;
+            }
+            case OP_SET_PROPERTY: {
+                if (!IS_INSTANCE(peek(1))){
+                    runtimeError("Only instances have fields.");
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
+                ObjInstance* instance = AS_INSTANCE(peek(1));
+                ObjString* name = READ_STRING();
+                tableSet(&instance->fields, OBJ_VAL(name), peek(0));
+                Value value = pop();
+                pop();
+                push(value);
+                break;
+            }
+            case OP_METHOD: {
+                defineMethod(READ_STRING());
+                break;
+            }
+            case OP_INVOKE: {
+                ObjString* method = READ_STRING();
+                int argCount = READ_BYTE();
+                // store ip from register to call frame (return address)
+                frame->ip = ip;
+                if (!invoke(method, argCount)){
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
                 frame = &vm.frames[vm.frameCount - 1];
                 ip = frame->ip;
                 break;

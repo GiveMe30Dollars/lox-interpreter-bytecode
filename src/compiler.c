@@ -28,7 +28,9 @@ typedef struct {
 typedef enum {
     TYPE_SCRIPT,
     TYPE_FUNCTION,
-    TYPE_LAMBDA
+    TYPE_LAMBDA,
+    TYPE_METHOD,
+    TYPE_INITIALIZER
 } FunctionType;
 
 typedef struct {
@@ -69,6 +71,11 @@ typedef struct Compiler {
     HashTable existingConstants;
 } Compiler;
 
+// All logic for handling this struct is in classDeclaration
+typedef struct ClassCompiler {
+    struct ClassCompiler* enclosing;
+} ClassCompiler;
+
 
 typedef enum {
     PREC_NONE,
@@ -98,9 +105,10 @@ typedef struct {
 // its assumed that the operator has the same precedence in any position
 
 
-// global variables
+// GLOBAL VARIABLES
 Parser parser;
 Compiler* current;
+ClassCompiler* currentClass;
 
 static Chunk* currentChunk(){
     return &current->function->chunk;
@@ -195,7 +203,7 @@ static inline bool isStatement(){
         case TOKEN_BREAK:
         case TOKEN_CONTINUE:
             return true;
-        default: ;    // Fall through
+        default: ;    // Fallthrough
     }
     return false;
 }
@@ -228,7 +236,12 @@ static void emitConstant(Value value){
     emitBytes(OP_CONSTANT, makeConstant(value));
 }
 static void emitReturn(){
-    emitByte(OP_NIL);
+    // if initializer, return 'this' on reserved slot 0
+    if (current->type == TYPE_INITIALIZER){
+        emitBytes(OP_GET_LOCAL, 0);
+    } else {
+        emitByte(OP_NIL);
+    }
     emitByte(OP_RETURN);
 }
 static int emitJump(uint8_t instruction){
@@ -295,8 +308,14 @@ static void initCompiler(Compiler* compiler, FunctionType type){
     Local* local = &current->locals[current->localCount++];
     local->depth = 0;
     local->isCaptured = false;
-    local->name.start = "";
-    local->name.length = 0;
+    if (type == TYPE_METHOD || type == TYPE_INITIALIZER){
+        // define 'this' for methods and initializers
+        local->name.start = "this";
+        local->name.length = 4;
+    } else {
+        local->name.start = "";
+        local->name.length = 0;
+    }
 }
 static ObjFunction* endCompiler(){
     // emit final byte, extract ObjFunction*
@@ -454,6 +473,22 @@ static void conditional(bool canAssign){
         parsePrecedence(PREC_CONDITIONAL);
         patchJump(elseJump);
     }
+}
+static void and_(bool canAssign){
+    int endJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP);
+    parsePrecedence(PREC_AND);
+    patchJump(endJump);
+}
+static void or_(bool canAssign){
+    // cannot negate first operand for naive OP_JUMP_IF_FALSE,
+    // two jump operations are always needed
+    int elseJump = emitJump(OP_JUMP_IF_FALSE);
+    int endJump = emitJump(OP_JUMP);
+    patchJump(elseJump);
+    emitByte(OP_POP);
+    parsePrecedence(PREC_OR);
+    patchJump(endJump);
 }
 
 
@@ -682,24 +717,23 @@ static void interpolation(bool canAssign){
     emitBytes(OP_CALL, (uint8_t)argCount);
 }
 
+static void dot(bool canAssign){
+    consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
+    uint8_t name = identifierConstant(&parser.previous);
 
+    if (canAssign && match(TOKEN_EQUAL)){
+        expression();
+        emitBytes(OP_SET_PROPERTY, name);
+    } else if (match(TOKEN_LEFT_PAREN)){
+        // Optimized invocations
+        uint8_t argCount = argumentList();
+        emitBytes(OP_INVOKE, name);
+        emitByte(argCount);
+    } else {
+        emitBytes(OP_GET_PROPERTY, name);
+    }
+}
 
-static void and_(bool canAssign){
-    int endJump = emitJump(OP_JUMP_IF_FALSE);
-    emitByte(OP_POP);
-    parsePrecedence(PREC_AND);
-    patchJump(endJump);
-}
-static void or_(bool canAssign){
-    // cannot negate first operand for naive OP_JUMP_IF_FALSE,
-    // two jump operations are always needed
-    int elseJump = emitJump(OP_JUMP_IF_FALSE);
-    int endJump = emitJump(OP_JUMP);
-    patchJump(elseJump);
-    emitByte(OP_POP);
-    parsePrecedence(PREC_OR);
-    patchJump(endJump);
-}
 
 static bool tryParseExpression(TokenType terminator){
     // attempts to parse as expression
@@ -994,6 +1028,9 @@ static void returnStatement(){
     if (match(TOKEN_SEMICOLON)){
         emitReturn();
     } else {
+        if (current->type == TYPE_INITIALIZER){
+            error("Cannot return a value from an initializer.");
+        }
         expression();
         consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
         emitByte(OP_RETURN);
@@ -1004,6 +1041,50 @@ static void lambda(bool canAssign){
     // Function literal with randomly-generated name
     // We came here from the Pratt parser
     function(TYPE_LAMBDA);
+}
+
+static void method(){
+    consume(TOKEN_IDENTIFIER, "Expect method name.");
+    uint8_t nameConstant = identifierConstant(&parser.previous);
+    FunctionType type = TYPE_METHOD;
+    if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0)
+        type = TYPE_INITIALIZER;
+    function(type);
+    emitBytes(OP_METHOD, nameConstant);
+}
+static void classDeclaration(){
+    consume(TOKEN_IDENTIFIER, "Expect class name.");
+    Token className = parser.previous;
+    uint8_t nameConstant = identifierConstant(&parser.previous);
+    declareVariable();
+
+    emitBytes(OP_CLASS, nameConstant);
+    defineVariable(nameConstant);
+
+    ClassCompiler classCompiler;
+    classCompiler.enclosing = currentClass;
+    currentClass = &classCompiler;
+
+    // load class back onto stack for method loading
+    namedVariable(className, false);
+
+    consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+    while (!check(TOKEN_EOF) && !check(TOKEN_RIGHT_BRACE)){
+        method();
+    }
+    consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+
+    currentClass = currentClass->enclosing;
+
+    emitByte(OP_POP);
+}
+static void this_ (bool canAssign){
+    if (currentClass == NULL){
+        error("Cannot use 'this' outside a class.");
+        return;
+    }
+    // treat as local variable
+    variable(false);
 }
 
 
@@ -1035,6 +1116,8 @@ static void statement(){
 static void declaration(){
     if (match(TOKEN_FUN)){
         functionDeclaration();
+    } else if (match(TOKEN_CLASS)){
+        classDeclaration();
     } else if (match(TOKEN_VAR)){
         varDeclaration();
     } else {
@@ -1051,7 +1134,7 @@ ParseRule rules[] = {
     [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
 
     [TOKEN_COMMA]         = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_DOT]           = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_DOT]           = {NULL,     dot,    PREC_CALL},
     [TOKEN_MINUS]         = {unary,    binary, PREC_TERM},
     [TOKEN_PLUS]          = {unary,    binary, PREC_TERM},
     [TOKEN_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
@@ -1093,7 +1176,7 @@ ParseRule rules[] = {
     [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
     [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_THIS]          = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_THIS]          = {this_,    NULL,   PREC_NONE},
     [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
     [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
     [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
