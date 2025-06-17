@@ -1,4 +1,10 @@
-# Bytecode-Based Lox Interpreter
+# BRANCH: long-opcodes
+
+This branch implements `LONG` opcodes for all opcodes interacting with chunk constants.
+
+This branch will be behind the `master` branch due to low maintenance.
+
+## Bytecode-Based Lox Interpreter
 
 This is an ongoing C implemetation of the Lox interpreter as described in the second half of the book:  
 - **"Crafting Interpreters"**: https://craftinginterpreters.com/ by Robert Nystrom.
