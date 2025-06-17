@@ -72,13 +72,44 @@ Value notImplementedNative(int argCount, Value* args){
 
 Value typeNative(int argCount, Value* args){
     Value value = args[0];
+
+    // if a sentinel identified, the string is already interned. this is safe.
+    ObjString* sentinel = NULL;
+
     if (IS_NIL(value)){
         return NIL_VAL();
-    } else if (IS_ARRAY(value)){
-        Value klass;
-        if (tableGet(&vm.globals, OBJ_VAL(copyString("Array", 5)), &klass) && IS_CLASS(klass)){
-            return klass;
+    } else if (IS_BOOL(value)){
+        sentinel = copyString("Boolean", 7);
+    } else if (IS_NUMBER(value)){
+        sentinel = copyString("Number", 6);
+    } else {
+        switch(OBJ_TYPE(value)){
+            case OBJ_STRING: {
+                sentinel = copyString("String", 6);
+                break;
+            }
+            case OBJ_NATIVE:
+            case OBJ_FUNCTION:
+            case OBJ_CLOSURE:
+            case OBJ_BOUND_METHOD: {
+                sentinel = copyString("Function", 8);
+                break;
+            }
+            case OBJ_CLASS:
+                return value;
+            case OBJ_INSTANCE:
+                return OBJ_VAL(AS_INSTANCE(value)->klass);
+            case OBJ_ARRAY: {
+                sentinel = copyString("Array", 5);
+                break;
+            }
+            default: ;    // Fallthrough
         }
+    }
+    if (sentinel != NULL){
+        Value klass;
+        tableGet(&vm.stl, OBJ_VAL(sentinel), &klass);
+        return klass;
     }
     return EMPTY_VAL();
 }
@@ -139,6 +170,12 @@ ImportInfo buildSTL(){
         IMPORT_NATIVE("concatenate", concatenateNative, -1),
         IMPORT_NATIVE("nan", notImplementedNative, -1),
 
+        IMPORT_NATIVE("type", typeNative, 1),
+
+        IMPORT_SENTINEL("Boolean", 0),
+        IMPORT_SENTINEL("Number", 0),
+        IMPORT_SENTINEL("String", 0),
+        IMPORT_SENTINEL("Function", 0),
         IMPORT_SENTINEL("Array", 3),
             IMPORT_NATIVE("init", arrayInitNative, -1),
             IMPORT_NATIVE("get", arrayGetNative, 1),

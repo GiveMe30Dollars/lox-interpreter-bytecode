@@ -15,15 +15,6 @@
 // global variable
 VM vm;
 
-// native function/method parsing
-static void defineNative(const char* name, NativeFn function, int arity){
-    // push onto stack to ensure they survive if GC triggered by reallocation of hash table
-    push(OBJ_VAL( copyString(name, (int)strlen(name)) ));
-    push(OBJ_VAL( newNative(function, arity, AS_STRING(vm.stack[0])) ));
-    tableSet(&vm.stl, vm.stack[0], vm.stack[1]);
-    pop();
-    pop();
-}
 
 // VM HELPER FUNCTIONS
 static void resetStack(){
@@ -41,6 +32,17 @@ Value pop(){
 }
 static Value peek(int distance){
     return vm.stackTop[-1 - distance];
+}
+
+
+// native function/method parsing
+static void defineNative(const char* name, NativeFn function, int arity){
+    // push onto stack to ensure they survive if GC triggered by reallocation of hash table
+    push(OBJ_VAL( copyString(name, (int)strlen(name)) ));
+    push(OBJ_VAL( newNative(function, arity, AS_STRING(vm.stack[0])) ));
+    tableSet(&vm.stl, vm.stack[0], vm.stack[1]);
+    pop();
+    pop();
 }
 
 void stl(){

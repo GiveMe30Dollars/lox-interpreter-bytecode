@@ -188,9 +188,9 @@ void printObject(Value value){
         case OBJ_CLOSURE:
             printFunction(AS_CLOSURE(value)->function); break;
         case OBJ_CLASS:
-            printf("%s", AS_CLASS(value)->name->chars); break;
+            printf("<class %s>", AS_CLASS(value)->name->chars); break;
         case OBJ_INSTANCE:
-            printf("%s instance", AS_INSTANCE(value)->klass->name->chars); break;
+            printf("<%s instance>", AS_INSTANCE(value)->klass->name->chars); break;
         case OBJ_BOUND_METHOD:
             printObject(OBJ_VAL(AS_BOUND_METHOD(value)->method));
         case OBJ_ARRAY: {
