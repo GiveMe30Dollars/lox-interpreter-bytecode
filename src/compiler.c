@@ -760,8 +760,25 @@ static void array(bool canAssign){
     emitBytes(OP_CALL, argCount);
 }
 
-static bool subscript(bool canAssign){
-    // TODO
+static void subscript(bool canAssign){
+    uint8_t idxArray = makeConstant(OBJ_VAL(copyString("Array", 5)));
+    uint8_t idxGet = makeConstant(OBJ_VAL(copyString("get", 3)));
+    uint8_t idxSet = makeConstant(OBJ_VAL(copyString("set", 3)));
+
+    // left bracket already consumed
+    parsePrecedence(PREC_CONDITIONAL);
+    consume(TOKEN_RIGHT_BRACKET, "Expect ']' after subscript.");
+    if (canAssign && match(TOKEN_EQUAL)){
+        // setter.
+        expression();
+        emitBytes(OP_GET_STL, idxArray);
+        emitBytes(OP_SUPER_INVOKE, idxSet);
+        emitByte(2);
+    } else {
+        emitBytes(OP_GET_STL, idxArray);
+        emitBytes(OP_SUPER_INVOKE, idxGet);
+        emitByte(1);
+    }
 }
 
 
@@ -1220,7 +1237,7 @@ ParseRule rules[] = {
 
     [TOKEN_QUERY]         = {NULL,     conditional, PREC_CONDITIONAL},
     [TOKEN_COLON]         = {NULL,     NULL,        PREC_NONE},
-    [TOKEN_LEFT_BRACKET]  = {array,    NULL,        PREC_CALL},
+    [TOKEN_LEFT_BRACKET]  = {array,    subscript,   PREC_CALL},
     [TOKEN_RIGHT_BRACKET] = {NULL,     NULL,        PREC_NONE},
 
     [TOKEN_BANG]          = {unary,    NULL,     PREC_NONE},
