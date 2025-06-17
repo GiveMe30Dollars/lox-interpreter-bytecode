@@ -83,4 +83,4 @@ Python does this. It even keeps the original `Math` module around so you can acc
 
 I think the takeaway is to look into how modularity works.
 
-All the work around this has been segmented into the branch `const-keyword`. I may or may not merge this into the master branch. Time will tell.
+All the work around this has been splintered off into the branch `const-keyword`. I may or may not merge this into the master branch. Time will tell.
