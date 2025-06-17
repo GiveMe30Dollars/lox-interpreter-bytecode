@@ -583,20 +583,29 @@ static InterpreterResult run(){
                 break;
             }
             case OP_GET_PROPERTY: {
-                if (!IS_INSTANCE(peek(0))){
-                    runtimeError("Only instances have properties.");
-                    return INTERPRETER_RUNTIME_ERROR;
-                }
-                ObjInstance* instance = AS_INSTANCE(peek(0));
+                ObjClass* klass = NULL;
                 Value name = READ_CONSTANT();
+                if (!IS_INSTANCE(peek(0))){
+                    Value value = peek(0);
+                    Value sentinel = typeNative(1, &value);
+                    if (IS_EMPTY(sentinel)){
+                        runtimeError("Only instances have properties.");
+                        return INTERPRETER_RUNTIME_ERROR;
+                    } else {
+                        klass = AS_CLASS(sentinel);
+                    }
+                } else {
+                    ObjInstance* instance = AS_INSTANCE(peek(0));
 
-                Value value;
-                if (tableGet(&instance->fields, name, &value)){
-                    pop();    // Instance
-                    push(value);
-                    break;
+                    Value value;
+                    if (tableGet(&instance->fields, name, &value)){
+                        pop();    // Instance
+                        push(value);
+                        break;
+                    }
+                    klass = instance->klass;
                 }
-                if (!bindMethod(instance->klass, name)){
+                if (!bindMethod(klass, name)){
                     return INTERPRETER_RUNTIME_ERROR;
                 }
                 break;

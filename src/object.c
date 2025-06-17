@@ -192,7 +192,7 @@ void printObject(Value value){
         case OBJ_INSTANCE:
             printf("<%s instance>", AS_INSTANCE(value)->klass->name->chars); break;
         case OBJ_BOUND_METHOD:
-            printObject(OBJ_VAL(AS_BOUND_METHOD(value)->method));
+            printObject(OBJ_VAL(AS_BOUND_METHOD(value)->method)); break;
         case OBJ_ARRAY: {
             ObjArray* array = AS_ARRAY(value);
             int count = array->data.count;
@@ -203,6 +203,7 @@ void printObject(Value value){
                 printf(", ");
             }
             printf("]");
+            break;
         }
         default: break;    // Unreachable.
     }
