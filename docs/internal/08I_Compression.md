@@ -22,3 +22,5 @@ False:          01111111 111111.. ........ ........ ........ ........ ........ .
 True:           01111111 111111.. ........ ........ ........ ........ ........ ......11
 Object:         11111111 11111100 NNNNNNNN NNNNNNNN NNNNNNNN NNNNNNNN NNNNNNNN NNNNNNNN 
 ```
+
+Funnily enough the one problem I encountered was an oversight with the garbage collector that never triggered with the tagged-union representation; I allocated the vm.initString *before* setting any garbage-collection related fields. I assume those defaulted to 0. `vm.initString` caused a garbage collection due to being greater than 0 bytes. The ObjString* is deallocated before being assigned to `vm.initString`. Segfault.

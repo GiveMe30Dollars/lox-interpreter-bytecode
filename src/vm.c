@@ -253,18 +253,18 @@ static void closeUpvalues(Value* last){
 }
 
 
-static void defineMethod(ObjString* name){
+static void defineMethod(Value name){
     Value method = peek(0);
     ObjClass* klass = AS_CLASS(peek(1));
-    tableSet(&klass->methods, OBJ_VAL(name), method);
+    tableSet(&klass->methods, name, method);
     pop();
 }
-static bool bindMethod(ObjClass* klass, ObjString* name){
+static bool bindMethod(ObjClass* klass, Value name){
     // returns true if method is found and bounded
     // resultant ObjBoundMethod is pushed to the stack
     Value method;
-    if (!tableGet(&klass->methods, OBJ_VAL(name), &method)){
-        runtimeError("Undefined property '%s'.", name->chars);
+    if (!tableGet(&klass->methods, name, &method)){
+        runtimeError("Undefined property '%s'.", AS_CSTRING(name));
         return false;
     }
     ObjBoundMethod* bound = newBoundMethod(peek(0), AS_OBJ(method));
@@ -274,15 +274,15 @@ static bool bindMethod(ObjClass* klass, ObjString* name){
 }
 
 
-static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount){
+static bool invokeFromClass(ObjClass* klass, Value name, int argCount){
     Value method;
-    if (!tableGet(&klass->methods, OBJ_VAL(name), &method)){
-        runtimeError("Undefined property '%s'", name->chars);
+    if (!tableGet(&klass->methods, name, &method)){
+        runtimeError("Undefined property '%s'", AS_CSTRING(name));
         return false;
     }
     return callValue(method, argCount);
 }
-static bool invoke(ObjString* name, int argCount){
+static bool invoke(Value name, int argCount){
     Value receiver = peek(argCount);
     if (!IS_INSTANCE(receiver)){
         runtimeError("Only instances have methods.");
@@ -290,7 +290,7 @@ static bool invoke(ObjString* name, int argCount){
     }
     ObjInstance* instance = AS_INSTANCE(receiver);
     Value value;
-    if (tableGet(&instance->fields, OBJ_VAL(name), &value)){
+    if (tableGet(&instance->fields, name, &value)){
         // treat as regular call by replacing 'this' with field (function object?)
         vm.stackTop[- argCount - 1] = value;
         return callValue(value, argCount);
@@ -531,10 +531,10 @@ static InterpreterResult run(){
                     return INTERPRETER_RUNTIME_ERROR;
                 }
                 ObjInstance* instance = AS_INSTANCE(peek(0));
-                ObjString* name = READ_STRING();
+                Value name = READ_CONSTANT();
 
                 Value value;
-                if (tableGet(&instance->fields, OBJ_VAL(name), &value)){
+                if (tableGet(&instance->fields, name, &value)){
                     pop();    // Instance
                     push(value);
                     break;
@@ -550,19 +550,19 @@ static InterpreterResult run(){
                     return INTERPRETER_RUNTIME_ERROR;
                 }
                 ObjInstance* instance = AS_INSTANCE(peek(1));
-                ObjString* name = READ_STRING();
-                tableSet(&instance->fields, OBJ_VAL(name), peek(0));
+                Value name = READ_CONSTANT();
+                tableSet(&instance->fields, name, peek(0));
                 Value value = pop();
                 pop();
                 push(value);
                 break;
             }
             case OP_METHOD: {
-                defineMethod(READ_STRING());
+                defineMethod(READ_CONSTANT());
                 break;
             }
             case OP_INVOKE: {
-                ObjString* method = READ_STRING();
+                Value method = READ_CONSTANT();
                 int argCount = READ_BYTE();
                 // store ip from register to call frame (return address)
                 frame->ip = ip;
@@ -587,7 +587,7 @@ static InterpreterResult run(){
                 break;
             }
             case OP_GET_SUPER: {
-                ObjString* name = READ_STRING();
+                Value name = READ_CONSTANT();
                 ObjClass* superclass = AS_CLASS(pop());
                 if (!bindMethod(superclass, name)){
                     return INTERPRETER_RUNTIME_ERROR;
@@ -595,7 +595,7 @@ static InterpreterResult run(){
                 break;
             }
             case OP_SUPER_INVOKE: {
-                ObjString* method = READ_STRING();
+                Value method = READ_CONSTANT();
                 int argCount = READ_BYTE();
                 ObjClass* superclass = AS_CLASS(pop());
                 // store ip from register to call frame (return address)
