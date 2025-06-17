@@ -698,7 +698,7 @@ static void interpolation(bool canAssign){
     uint8_t idxC = makeConstant(OBJ_VAL(copyString("concatenate", 11)));
 
     // get concatenate native function onto stack
-    emitBytes(OP_GET_GLOBAL, idxC);
+    emitBytes(OP_GET_STL, idxC);
 
     int argCount = 0;
     do {
@@ -706,7 +706,7 @@ static void interpolation(bool canAssign){
         string(canAssign);
 
         // get the Lox stringcast native function, evaluate the expression, and call it
-        emitBytes(OP_GET_GLOBAL, idxS);
+        emitBytes(OP_GET_STL, idxS);
         expression();
         emitBytes(OP_CALL, 1);
 
@@ -744,7 +744,7 @@ static void dot(bool canAssign){
 
 static void array(bool canAssign){
     uint8_t idxArray = makeConstant(OBJ_VAL(copyString("Array", 5)));
-    emitBytes(OP_GET_GLOBAL, idxArray);
+    emitBytes(OP_GET_STL, idxArray);
     uint8_t argCount = 0;
     if (!check(TOKEN_RIGHT_BRACKET)){
         do {
@@ -758,6 +758,10 @@ static void array(bool canAssign){
     }
     consume(TOKEN_RIGHT_BRACKET, "Expect ']' after arguments.");
     emitBytes(OP_CALL, argCount);
+}
+
+static bool subscript(bool canAssign){
+    // TODO
 }
 
 

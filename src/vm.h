@@ -21,6 +21,8 @@ typedef struct {
     int frameCount;
     Value stack[STACK_MAX];
     Value* stackTop;
+    
+    HashTable stl;
     HashTable globals;
     HashTable strings;
     ObjUpvalue* openUpvalues;

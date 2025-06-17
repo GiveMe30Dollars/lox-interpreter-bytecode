@@ -20,7 +20,7 @@ static void defineNative(const char* name, NativeFn function, int arity){
     // push onto stack to ensure they survive if GC triggered by reallocation of hash table
     push(OBJ_VAL( copyString(name, (int)strlen(name)) ));
     push(OBJ_VAL( newNative(function, arity, AS_STRING(vm.stack[0])) ));
-    tableSet(&vm.globals, vm.stack[0], vm.stack[1]);
+    tableSet(&vm.stl, vm.stack[0], vm.stack[1]);
     pop();
     pop();
 }
@@ -65,7 +65,7 @@ void stl(){
                 pop();
                 i++;
             }
-            tableSet(&vm.globals, vm.stack[0], vm.stack[1]);
+            tableSet(&vm.stl, vm.stack[0], vm.stack[1]);
             pop();
             pop();
         }
@@ -76,6 +76,8 @@ void stl(){
 // INITIALIZE/FREE VM
 void initVM(){
     resetStack();
+
+    initTable(&vm.stl);
     initTable(&vm.globals);
     initTable(&vm.strings);
 
@@ -412,8 +414,8 @@ static InterpreterResult run(){
             }
             case OP_GET_GLOBAL: {
                 Value name = READ_CONSTANT();
-                Value value = NIL_VAL();
-                if (!tableGet(&vm.globals, name, &value)){
+                Value value;
+                if (!tableGet(&vm.globals, name, &value) && !tableGet(&vm.stl, name, &value)){
                     frame->ip = ip;
                     runtimeError("Undefined variable '%s'", AS_CSTRING(name));
                     return INTERPRETER_RUNTIME_ERROR;
@@ -450,6 +452,17 @@ static InterpreterResult run(){
             case OP_SET_UPVALUE: {
                 uint8_t slot = READ_BYTE();
                 *((ObjClosure*)frame->function)->upvalues[slot]->location = peek(0);
+                break;
+            }
+            case OP_GET_STL: {
+                Value name = READ_CONSTANT();
+                Value value;
+                if (!tableGet(&vm.stl, name, &value)){
+                    frame->ip = ip;
+                    runtimeError("Undefined STL identifier '%s'", AS_CSTRING(name));
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
+                push(value);
                 break;
             }
 
