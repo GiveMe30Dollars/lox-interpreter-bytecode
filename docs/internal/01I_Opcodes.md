@@ -7,6 +7,7 @@ Global variables are stored in the `vm.globals` hashtable.
 The following arguments are shorthand:
 - `idx`: A single-byte operand representing a generic number index to a specified container.
 - `cidx`: A special form of `idx` that points to the value constant stored in `chunk->constants[cidx]`. Single-byte operand.
+  - On the `long-opcodes` branch, all opcodes that take in `cidx` also has a `LONG` variant, which uses a three-byte operand instead.
 - `byteX2`: A two-byte operand. Typically used in jump operations.
 
 The currently implemented operation codes (opcodes) are as follows:
