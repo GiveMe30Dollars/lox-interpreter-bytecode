@@ -20,6 +20,8 @@
 #define OBJ_HEADER_COMPRESSION
 #define VALUE_NAN_BOXING
 
+#define CHUNK_TEST_LONG_OPCODES
+
 // #define IS_FALSEY_EXTENDED
 
 #endif

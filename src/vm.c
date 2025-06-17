@@ -308,10 +308,12 @@ static InterpreterResult run(){
     register uint8_t* ip = frame->ip;
 
     // Preprocessor macros for reading bytes
-    #define READ_BYTE() (*ip++)
-    #define READ_SHORT() (ip += 2, (uint16_t)ip[-2] << 8 | ip[-1])
-    #define READ_CONSTANT() (getFrameFunction(frame)->chunk.constants.values[READ_BYTE()])
-    #define READ_STRING() (AS_STRING(READ_CONSTANT()))
+    #define READ_BYTE()       (*ip++)
+    #define READ_SHORT()      (ip += 2, (uint16_t)ip[-2] << 8 | ip[-1])
+    #define READ_LONG()       (ip += 3, (uint32_t)ip[-3] << 16 | ip[-2] << 8 | ip[-1])
+    #define READ_CONSTANT(instruction) \
+        (getFrameFunction(frame)->chunk.constants.values[isLongOpcode(instruction) ? READ_LONG() : READ_BYTE()])
+    #define READ_STRING(instruction)     (AS_STRING(READ_CONSTANT(instruction)))
     
     #define BINARY_OP(valueType, op)\
         do{ \
@@ -343,8 +345,9 @@ static InterpreterResult run(){
         // excecute instruction
         uint8_t instruction;
         switch (instruction = READ_BYTE()){
-            case OP_CONSTANT:{
-                Value constant = READ_CONSTANT();
+            case OP_CONSTANT:
+            case OP_CONSTANT_LONG: {
+                Value constant = READ_CONSTANT(instruction);
                 push(constant);
                 break;
             }
@@ -362,14 +365,16 @@ static InterpreterResult run(){
                 break;
             }
 
-            case OP_DEFINE_GLOBAL: {
-                Value name = READ_CONSTANT();
+            case OP_DEFINE_GLOBAL: 
+            case OP_DEFINE_GLOBAL_LONG: {
+                Value name = READ_CONSTANT(instruction);
                 tableSet(&vm.globals, name, peek(0));
                 pop();
                 break;
             }
-            case OP_GET_GLOBAL: {
-                Value name = READ_CONSTANT();
+            case OP_GET_GLOBAL: 
+            case OP_GET_GLOBAL_LONG: {
+                Value name = READ_CONSTANT(instruction);
                 Value value = NIL_VAL();
                 if (!tableGet(&vm.globals, name, &value)){
                     frame->ip = ip;
@@ -379,8 +384,9 @@ static InterpreterResult run(){
                 push(value);
                 break;
             }
-            case OP_SET_GLOBAL: {
-                Value name = READ_CONSTANT();
+            case OP_SET_GLOBAL: 
+            case OP_SET_GLOBAL_LONG: {
+                Value name = READ_CONSTANT(instruction);
                 if (tableSet(&vm.globals, name, peek(0))){
                     // isNewKey returned true. cannot set undeclared global variable.
                     frame->ip = ip;
@@ -483,8 +489,9 @@ static InterpreterResult run(){
                 ip = frame->ip;
                 break;
             }
-            case OP_CLOSURE: {
-                ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
+            case OP_CLOSURE: 
+            case OP_CLOSURE_LONG: {
+                ObjFunction* function = AS_FUNCTION(READ_CONSTANT(instruction));
                 ObjClosure* closure = newClosure(function);
                 push(OBJ_VAL(closure));
                 for (int i = 0; i < closure->upvalueCount; i++){
@@ -521,17 +528,19 @@ static InterpreterResult run(){
                 break;
             }
 
-            case OP_CLASS: {
-                push(OBJ_VAL(newClass(READ_STRING())));
+            case OP_CLASS: 
+            case OP_CLASS_LONG: {
+                push(OBJ_VAL(newClass(READ_STRING(instruction))));
                 break;
             }
-            case OP_GET_PROPERTY: {
+            case OP_GET_PROPERTY:
+            case OP_GET_PROPERTY_LONG: {
                 if (!IS_INSTANCE(peek(0))){
                     runtimeError("Only instances have properties.");
                     return INTERPRETER_RUNTIME_ERROR;
                 }
                 ObjInstance* instance = AS_INSTANCE(peek(0));
-                Value name = READ_CONSTANT();
+                Value name = READ_CONSTANT(instruction);
 
                 Value value;
                 if (tableGet(&instance->fields, name, &value)){
@@ -544,25 +553,28 @@ static InterpreterResult run(){
                 }
                 break;
             }
-            case OP_SET_PROPERTY: {
+            case OP_SET_PROPERTY: 
+            case OP_SET_PROPERTY_LONG: {
                 if (!IS_INSTANCE(peek(1))){
                     runtimeError("Only instances have fields.");
                     return INTERPRETER_RUNTIME_ERROR;
                 }
                 ObjInstance* instance = AS_INSTANCE(peek(1));
-                Value name = READ_CONSTANT();
+                Value name = READ_CONSTANT(instruction);
                 tableSet(&instance->fields, name, peek(0));
                 Value value = pop();
                 pop();
                 push(value);
                 break;
             }
-            case OP_METHOD: {
-                defineMethod(READ_CONSTANT());
+            case OP_METHOD:
+            case OP_METHOD_LONG: {
+                defineMethod(READ_CONSTANT(instruction));
                 break;
             }
-            case OP_INVOKE: {
-                Value method = READ_CONSTANT();
+            case OP_INVOKE: 
+            case OP_INVOKE_LONG: {
+                Value method = READ_CONSTANT(instruction);
                 int argCount = READ_BYTE();
                 // store ip from register to call frame (return address)
                 frame->ip = ip;
@@ -586,16 +598,18 @@ static InterpreterResult run(){
                 pop();
                 break;
             }
-            case OP_GET_SUPER: {
-                Value name = READ_CONSTANT();
+            case OP_GET_SUPER: 
+            case OP_GET_SUPER_LONG: {
+                Value name = READ_CONSTANT(instruction);
                 ObjClass* superclass = AS_CLASS(pop());
                 if (!bindMethod(superclass, name)){
                     return INTERPRETER_RUNTIME_ERROR;
                 }
                 break;
             }
-            case OP_SUPER_INVOKE: {
-                Value method = READ_CONSTANT();
+            case OP_SUPER_INVOKE: 
+            case OP_SUPER_INVOKE_LONG: {
+                Value method = READ_CONSTANT(instruction);
                 int argCount = READ_BYTE();
                 ObjClass* superclass = AS_CLASS(pop());
                 // store ip from register to call frame (return address)

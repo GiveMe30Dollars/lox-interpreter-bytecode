@@ -65,6 +65,12 @@ void initValueArray(ValueArray* array){
     array->count = 0;
     array->capacity = 0;
     array->values = NULL;
+
+    #ifdef CHUNK_TEST_LONGS
+    array->count = 256;
+    array->capacity = 256;
+    array->values = GROW_ARRAY(Value, array->values, 0, array->capacity);
+    #endif
 }
 void freeValueArray(ValueArray* array){
     FREE_ARRAY(Value, array->values, array->capacity);

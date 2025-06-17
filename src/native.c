@@ -40,6 +40,7 @@ Value stringNative(int argCount, Value* args){
                 return OBJ_VAL(AS_INSTANCE(value)->klass->name);
         }
     }
+    return OBJ_VAL(copyString("", 0));
     #else
     switch(value.type){
         case VAL_NIL:

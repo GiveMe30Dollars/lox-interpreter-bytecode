@@ -225,23 +225,32 @@ static void emitBytes(uint8_t byte1, uint8_t byte2){
     emitByte(byte1);
     emitByte(byte2);
 }
-static uint8_t makeConstant(Value value){
+static uint32_t makeConstant(Value value){
     // stores the value in the current chunk's constants array, returns its index as a byte
     // if identifier already exists, return that instead
     Value idx;
     if (tableGet(&current->existingConstants, value, &idx))
-        return (uint8_t)AS_NUMBER(idx);
+        return (uint32_t)AS_NUMBER(idx);
     
-    int constant = addConstant(currentChunk(), value);
-    if (constant > UINT8_MAX){
-        error("Too many constants in one chunk.");
+    uint32_t constant = addConstant(currentChunk(), value);
+    if (constant > 0x00ffffff){
+        error("Number of constants in one chunk cannot exceed 2^24.");
         return 0;
     }
     tableSet(&current->existingConstants, value, NUMBER_VAL(constant));
-    return (uint8_t)constant;
+    return (uint32_t)constant;
 }
-static void emitConstant(Value value){
-    emitBytes(OP_CONSTANT, makeConstant(value));
+static void emitConstant(Opcode instruction, uint32_t constIdx){
+    if ((constIdx & 0xff) == constIdx){
+        emitBytes(instruction, (uint8_t)constIdx);
+    } else if ((constIdx & 0xffffff) == constIdx){
+        emitByte(instruction + 1);
+        emitByte((uint8_t)((constIdx >> 16) & 0xff));
+        emitByte((uint8_t)((constIdx >> 8) & 0xff));
+        emitByte((uint8_t)(constIdx & 0xff));
+    } else {
+        error("Number of constants in one chunk cannot exceed 2^24.");
+    }
 }
 static void emitReturn(){
     // if initializer, return 'this' on reserved slot 0
@@ -403,12 +412,13 @@ static void parsePrecedence(Precedence precedence);
 // PARSER EXPRESSION FUNCTIONS
 static void number(bool canAssign){
     double value = strtod(parser.previous.start, NULL);
-    emitConstant(NUMBER_VAL(value));
+    emitConstant(OP_CONSTANT, makeConstant(NUMBER_VAL(value)));
 }
 static void string(bool canAssign){
     // quotation marks are already stripped (changed after string interpolation added)
     // (copyString() because there is no guarantee that the source string survives past compilation)
-    emitConstant(OBJ_VAL(copyString(parser.previous.start, parser.previous.length)));
+
+    emitConstant(OP_CONSTANT, makeConstant(OBJ_VAL(copyString(parser.previous.start, parser.previous.length))) );
 }
 static void grouping(bool canAssign){
     expression();
@@ -501,7 +511,7 @@ static void or_(bool canAssign){
 
 
 // PARSER VARIABLE HELPER FUNCTIONS
-static uint8_t identifierConstant(Token* name){
+static uint32_t identifierConstant(Token* name){
     return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 }
 static bool identifiersEqual(Token* a, Token* b){
@@ -523,7 +533,7 @@ static void markInitialized(){
     if (current->scopeDepth == 0) return;
     current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
-static int resolveLocal(Compiler* compiler, Token* name){
+static uint32_t resolveLocal(Compiler* compiler, Token* name){
     // returns the position of local variable on the stack.
     // if local variable does not exist, return -1
     // (treat as global variable)
@@ -539,7 +549,7 @@ static int resolveLocal(Compiler* compiler, Token* name){
     return -1;
 }
 
-static int addUpvalue(Compiler* compiler, int slotIdx, bool isLocal){
+static uint32_t addUpvalue(Compiler* compiler, int slotIdx, bool isLocal){
     int upvalueCount = compiler->function->upvalueCount;
     for (int i = 0; i < upvalueCount; i++){
         Upvalue* upvalue = &compiler->upvalues[i];
@@ -554,7 +564,7 @@ static int addUpvalue(Compiler* compiler, int slotIdx, bool isLocal){
     compiler->upvalues[upvalueCount].index = slotIdx;
     return compiler->function->upvalueCount++;
 }
-static int resolveUpvalue(Compiler* compiler, Token* name){
+static uint32_t resolveUpvalue(Compiler* compiler, Token* name){
     // resolves an upvalue in the enclosing compiler
 
     if (compiler->enclosing == NULL) return -1;
@@ -591,16 +601,16 @@ static void declareVariable(){
     }
     addLocal(*name);
 }
-static void defineVariable(uint8_t global){
+static void defineVariable(uint32_t global){
     // specific to global variables
     // local variables are on the stack. mark slot as initialized
     if (current->scopeDepth > 0){
         markInitialized();
         return;
     }
-    emitBytes(OP_DEFINE_GLOBAL, global);
+    emitConstant(OP_DEFINE_GLOBAL, global);
 }
-static uint8_t parseVariable(const char* errorMessage){
+static uint32_t parseVariable(const char* errorMessage){
     // parses the variable name, then:
     // global scope: returns the constant idx to the variable name
     // local scope: declares the variable name in the Compiler locals struct
@@ -612,12 +622,13 @@ static uint8_t parseVariable(const char* errorMessage){
 
 
 static void namedVariable(Token name, bool canAssign){
-    uint8_t getOp, setOp;
-    int arg = resolveLocal(current, &name);
-    if (arg != -1){
+    Opcode getOp, setOp;
+    const uint32_t negative = -1;
+    uint32_t arg = resolveLocal(current, &name);
+    if (arg != negative){
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
-    } else if ((arg = resolveUpvalue(current, &name)) != -1){
+    } else if ((arg = resolveUpvalue(current, &name)) != negative){
         getOp = OP_GET_UPVALUE;
         setOp = OP_SET_UPVALUE;
     } else {
@@ -635,7 +646,7 @@ static void namedVariable(Token name, bool canAssign){
                 // evaluate expression and set variable to value on stack
                 advance();
                 expression();
-                emitBytes(setOp, (uint8_t)arg);
+                emitConstant(setOp, arg);
                 return;
             }
             case (TOKEN_PLUS_EQUAL):   assignInstruction = OP_ADD; break;
@@ -648,16 +659,16 @@ static void namedVariable(Token name, bool canAssign){
             // compound assignment operation.
             // get variable, advance past operator, evaluate expression to the right (PREC_ASSIGN)
             // apply operation and set variable to value on stack
-            emitBytes(getOp, arg);
+            emitConstant(getOp, arg);
             advance();
             expression();
             emitByte((uint8_t)assignInstruction);
-            emitBytes(setOp, arg);
+            emitConstant(setOp, arg);
             return;
         }
     }
     // Assumed get operation if no assignment succeeded
-    emitBytes(getOp, (uint8_t)arg);
+    emitConstant(getOp, arg);
 
     // if variable assignment on an invalid target, return to parsePrecedence and do not consume '='
     // error handling is done there.
@@ -694,11 +705,11 @@ static void interpolation(bool canAssign){
     // String interpolation handling
 
     // Get the index to "string" and "concatenate" constant (required to call native function)
-    uint8_t idxS = makeConstant(OBJ_VAL(copyString("string", 6)));
-    uint8_t idxC = makeConstant(OBJ_VAL(copyString("concatenate", 11)));
+    uint32_t idxS = makeConstant(OBJ_VAL(copyString("string", 6)));
+    uint32_t idxC = makeConstant(OBJ_VAL(copyString("concatenate", 11)));
 
     // get concatenate native function onto stack
-    emitBytes(OP_GET_GLOBAL, idxC);
+    emitConstant(OP_GET_GLOBAL, idxC);
 
     int argCount = 0;
     do {
@@ -706,7 +717,7 @@ static void interpolation(bool canAssign){
         string(canAssign);
 
         // get the Lox stringcast native function, evaluate the expression, and call it
-        emitBytes(OP_GET_GLOBAL, idxS);
+        emitConstant(OP_GET_GLOBAL, idxS);
         expression();
         emitBytes(OP_CALL, 1);
 
@@ -727,18 +738,18 @@ static void interpolation(bool canAssign){
 
 static void dot(bool canAssign){
     consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
-    uint8_t name = identifierConstant(&parser.previous);
+    uint32_t name = identifierConstant(&parser.previous);
 
     if (canAssign && match(TOKEN_EQUAL)){
         expression();
-        emitBytes(OP_SET_PROPERTY, name);
+        emitConstant(OP_SET_PROPERTY, name);
     } else if (match(TOKEN_LEFT_PAREN)){
         // Optimized invocations
         uint8_t argCount = argumentList();
-        emitBytes(OP_INVOKE, name);
+        emitConstant(OP_INVOKE, name);
         emitByte(argCount);
     } else {
-        emitBytes(OP_GET_PROPERTY, name);
+        emitConstant(OP_GET_PROPERTY, name);
     }
 }
 
@@ -762,7 +773,7 @@ static bool tryParseExpression(TokenType terminator){
 
 // PARSER STATEMENT FUNCTIONS
 static void varDeclaration(){
-    uint8_t global = parseVariable("Expect variable name.");
+    uint32_t global = parseVariable("Expect variable name.");
 
     // Evaluate and emit bytecode for initialization value first
     if (match(TOKEN_EQUAL)){
@@ -1010,18 +1021,18 @@ static void function(FunctionType type){
 
     if (function->upvalueCount > 0){
         // create closure object
-        emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+        emitConstant(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
         for (int i = 0; i < function->upvalueCount; i++){
             emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
             emitByte(compiler.upvalues[i].index);
         }
     } else {
         // create function object
-        emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+        emitConstant(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
     }
 }
 static void functionDeclaration(){
-    uint8_t global = parseVariable("Expect function name.");
+    uint32_t global = parseVariable("Expect function name.");
     markInitialized();
     function(TYPE_FUNCTION);
     defineVariable(global);
@@ -1053,20 +1064,20 @@ static void lambda(bool canAssign){
 
 static void method(){
     consume(TOKEN_IDENTIFIER, "Expect method name.");
-    uint8_t nameConstant = identifierConstant(&parser.previous);
+    uint32_t nameConstant = identifierConstant(&parser.previous);
     FunctionType type = TYPE_METHOD;
     if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0)
         type = TYPE_INITIALIZER;
     function(type);
-    emitBytes(OP_METHOD, nameConstant);
+    emitConstant(OP_METHOD, nameConstant);
 }
 static void classDeclaration(){
     consume(TOKEN_IDENTIFIER, "Expect class name.");
     Token className = parser.previous;
-    uint8_t nameConstant = identifierConstant(&parser.previous);
+    uint32_t nameConstant = identifierConstant(&parser.previous);
     declareVariable();
 
-    emitBytes(OP_CLASS, nameConstant);
+    emitConstant(OP_CLASS, nameConstant);
     defineVariable(nameConstant);
 
     ClassCompiler classCompiler;
@@ -1128,17 +1139,17 @@ static void super_ (bool canAssign){
     }
     consume(TOKEN_DOT, "Expect '.' after 'super'.");
     consume(TOKEN_IDENTIFIER, "Expect superclass method name.");
-    uint8_t name = identifierConstant(&parser.previous);
+    uint32_t name = identifierConstant(&parser.previous);
 
     namedVariable(syntheticToken("this"), false);
     if (match(TOKEN_LEFT_PAREN)){
         uint8_t argCount = argumentList();
         namedVariable(syntheticToken("super"), false);
-        emitBytes(OP_SUPER_INVOKE, name);
+        emitConstant(OP_SUPER_INVOKE, name);
         emitByte(argCount);
     } else {
         namedVariable(syntheticToken("super"), false);
-        emitBytes(OP_GET_SUPER, name);
+        emitConstant(OP_GET_SUPER, name);
     }
 }
 

@@ -13,6 +13,13 @@ void initChunk(Chunk* chunk){
     chunk->lineCount = 0;
     chunk->lineCapacity = 0;
     chunk->lines = NULL;
+
+    #ifdef CHUNK_TEST_LONG_OPCODES
+    ValueArray* array = &chunk->constants;
+    array->count = 256;
+    array->capacity = 256;
+    array->values = GROW_ARRAY(Value, array->values, 0, array->capacity);
+    #endif
 }
 void freeChunk(Chunk* chunk){
     FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
