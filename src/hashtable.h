@@ -9,7 +9,8 @@ uint32_t hashBytes(const uint8_t* key, size_t numOfBytes);
 
 // ACCESS MACROS
 #define HASH_CSTRING(string, length) (hashBytes((uint8_t*)(string), length * sizeof(char)))
-#define HASH_NUMBER(value) (hashBytes((uint8_t*)(&(AS_NUMBER(value))), sizeof(double)))
+#define HASH_NUMBER(value)           (hashEight((uint64_t)AS_NUMBER(value)))
+#define HASH_POINTER(ptr)            (hashEight((uint64_t)(uintptr_t)ptr))
 
 
 // HASH TABLE

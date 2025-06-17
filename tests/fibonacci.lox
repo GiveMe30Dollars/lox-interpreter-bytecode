@@ -5,7 +5,7 @@ fun fib(n){
 
 var start = clock();
 print fib;
-print fib(40);
+print fib(30);
 var end = clock();
 print "Time Elapsed (s):";
 print (end - start);

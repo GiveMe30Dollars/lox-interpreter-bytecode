@@ -1,15 +1,46 @@
-#include "native.h"
-#include "memory.h"
-
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "native.h"
+#include "memory.h"
+
 
 Value clockNative(int argCount, Value* args){
     return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
 Value stringNative(int argCount, Value* args){
     Value value = args[0];
+    #ifdef VALUE_NAN_BOXING
+    if (IS_EMPTY(value)){
+        return OBJ_VAL(copyString("<empty>", 7));
+    } else if (IS_NIL(value)){
+        return OBJ_VAL(copyString("nil", 3));
+    } else if (IS_BOOL(value)){
+        return OBJ_VAL( AS_BOOL(value) ? (Obj*)copyString("true", 4) : (Obj*)copyString("false", 5) );
+    } else if (IS_NUMBER(value)){
+        double number = AS_NUMBER(value);
+        int length = snprintf(NULL, 0, "%g", number);
+        char* buffer = ALLOCATE(char, length + 1);
+        snprintf(buffer, length + 1, "%g", number);
+        return OBJ_VAL(takeString(buffer, length));
+    } else {
+        switch(OBJ_TYPE(value)){
+            case OBJ_STRING:
+                return value;
+            case OBJ_FUNCTION:
+                return OBJ_VAL(AS_FUNCTION(value)->name);
+            case OBJ_NATIVE: 
+                return OBJ_VAL(AS_NATIVE(value)->name);
+            case OBJ_CLOSURE:
+                return OBJ_VAL(AS_CLOSURE(value)->function->name);
+            case OBJ_CLASS:
+                return OBJ_VAL(AS_CLASS(value)->name);
+            case OBJ_INSTANCE:
+                return OBJ_VAL(AS_INSTANCE(value)->klass->name);
+        }
+    }
+    #else
     switch(value.type){
         case VAL_NIL:
             return OBJ_VAL(copyString("nil", 3));
@@ -43,6 +74,7 @@ Value stringNative(int argCount, Value* args){
     }
     // Default case: empty string.
     return OBJ_VAL(copyString("", 0));
+    #endif
 }
 Value concatenateNative(int argCount, Value* args){
     // Concatenates any number of strings, up to UINT8_MAX

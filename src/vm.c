@@ -34,17 +34,19 @@ void initVM(){
     resetStack();
     initTable(&vm.globals);
     initTable(&vm.strings);
-    vm.openUpvalues = NULL;
-    vm.objects = NULL;
-    vm.hash = 0;
-    vm.initString = NIL_VAL();
-    vm.initString = OBJ_VAL(copyString("init", 4));
 
+    // do this BEFORE initString
     vm.bytesAllocated = 0;
     vm.nextGC = 1024 * 1024;
     vm.grayCount = 0;
     vm.grayCapacity = 0;
     vm.grayStack = NULL;
+
+    vm.openUpvalues = NULL;
+    vm.objects = NULL;
+    vm.hash = 0;
+    vm.initString = NIL_VAL();
+    vm.initString = OBJ_VAL(copyString("init", 4));
 
     for (int i = 0; i < importCount; i++){
         ImportNative* native = &importLibrary[i];
@@ -445,15 +447,7 @@ static InterpreterResult run(){
                     runtimeError("Operand must be a number.");
                     return INTERPRETER_RUNTIME_ERROR;
                 }
-                vm.stackTop[-1].as.number *= -1;
-                break;
-            case OP_UNARY_PLUS:
-                if (!IS_NUMBER(peek(0))){
-                    frame->ip = ip;
-                    runtimeError("Operand must be a number.");
-                    return INTERPRETER_RUNTIME_ERROR;
-                }
-                // Does nothing.
+                push( NUMBER_VAL( -(AS_NUMBER(pop())) ) );
                 break;
             
             case OP_PRINT:

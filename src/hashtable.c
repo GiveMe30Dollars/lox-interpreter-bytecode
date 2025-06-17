@@ -15,6 +15,16 @@ uint32_t hashBytes(const uint8_t* key, size_t numOfBytes){
     }
     return hash;
 }
+uint32_t hashEight(uint64_t key){
+    union BitCast
+    {
+        uint64_t key;
+        uint32_t ints[2];
+    };
+    union BitCast bitcast;
+    bitcast.key = key;
+    return bitcast.ints[0] + bitcast.ints[1];
+}
 
 
 void initTable(HashTable* table){
@@ -30,32 +40,23 @@ void freeTable(HashTable* table){
 
 // HELPRE FUNCTIONS FOR HASH TABLE
 static uint32_t getHash(Value value){
-    switch(value.type){
-        case VAL_NIL:    return 5;
-        case VAL_BOOL:   return AS_BOOL(value) ? 3 : 7;
-        case VAL_NUMBER:
-            return HASH_NUMBER(value);
-        case VAL_OBJ: {
-            switch (OBJ_TYPE(value)){
-                case OBJ_STRING:
-                    return AS_STRING(value)->hash;
-                case OBJ_FUNCTION:
-                case OBJ_NATIVE:
-                case OBJ_CLOSURE:
-                case OBJ_CLASS:
-                case OBJ_INSTANCE:
-                case OBJ_BOUND_METHOD:
-                {
-                    union BitCast
-                    {
-                        Obj* pointer;
-                        uint32_t ints[2];
-                    };
-                    union BitCast bitcast;
-                    bitcast.pointer = AS_OBJ(value);
-                    return bitcast.ints[0] + bitcast.ints[1];
-                }
-            }
+    if (IS_NIL(value)){
+        return 5;
+    } else if (IS_BOOL(value)){
+        return AS_BOOL(value) ? 3 : 7;
+    } else if (IS_NUMBER(value)){
+        return HASH_NUMBER(value);
+    } else {
+        switch (OBJ_TYPE(value)){
+            case OBJ_STRING:
+                return AS_STRING(value)->hash;
+            case OBJ_FUNCTION:
+            case OBJ_NATIVE:
+            case OBJ_CLOSURE:
+            case OBJ_CLASS:
+            case OBJ_INSTANCE:
+            case OBJ_BOUND_METHOD:
+                return HASH_POINTER(AS_OBJ(value));
         }
     }
     return 0;    // Unreachable.

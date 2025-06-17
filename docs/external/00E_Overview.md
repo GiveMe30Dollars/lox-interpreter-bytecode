@@ -24,5 +24,9 @@ The following preprocessor flags in `common.h` changes the behaviour of the VM:
   *Assumes 64x host architecture. Assumes at most 48 little-endian bits used for 64-bit pointers.*  
   **On** by default.
 
+- **`VALUE_NAN_BOXING`**: Compresses the `Value` struct from 16 bytes to 8 bytes.  
+*Assumes 64x host architecture. Assumes at most 48 little-endian bits used for 64-bit pointers.*  
+**On** by default.
+
 - **`IS_FALSEY_EXTENDED`**: Enables `Number(0)`, `String("")` and inaccessible type `<empty>` to be evaluated as Boolean `false` for boolean operations.  
   **Off** by default.
