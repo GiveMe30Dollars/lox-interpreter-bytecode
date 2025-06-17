@@ -15,21 +15,65 @@
 // global variable
 VM vm;
 
-// native function parsing
+// native function/method parsing
 static void defineNative(const char* name, NativeFn function, int arity){
     // push onto stack to ensure they survive if GC triggered by reallocation of hash table
-    push(OBJ_VAL(copyString(name, (int)strlen(name))));
+    push(OBJ_VAL( copyString(name, (int)strlen(name)) ));
     push(OBJ_VAL( newNative(function, arity, AS_STRING(vm.stack[0])) ));
     tableSet(&vm.globals, vm.stack[0], vm.stack[1]);
     pop();
     pop();
 }
 
-// INITIALIZE/FREE VM
+// VM HELPER FUNCTIONS
 static void resetStack(){
     vm.stackTop = vm.stack;
     vm.frameCount = 0;
 }
+
+void push(Value value){
+    *vm.stackTop = value;
+    vm.stackTop++;
+}
+Value pop(){
+    vm.stackTop--;
+    return *vm.stackTop;
+}
+static Value peek(int distance){
+    return vm.stackTop[-1 - distance];
+}
+
+void stl(){
+    ImportInfo imports = buildSTL();
+    for (int i = 0; i < imports.count; /* manual increment */ ){
+        ImportStruct imp = imports.start[i];
+        if (imp.header == IMPORT_NATIVE){
+            ImportNative native = imp.as.native;
+            defineNative(native.name, native.function, native.arity);
+            i++;
+        } else {
+            ImportSentinel sentinel = imp.as.sentinel;
+            push(OBJ_VAL( copyString(sentinel.name, (int)strlen(sentinel.name)) ));
+            push(OBJ_VAL( newClass(AS_STRING(peek(0))) ));
+            i++;
+            for (int j = 0; j < sentinel.numOfMethods; j++){
+                ImportNative method = imports.start[i].as.native;
+                push(OBJ_VAL( copyString(method.name, (int)strlen(method.name)) ));
+                push(OBJ_VAL( newNative(method.function, method.arity, AS_STRING(peek(0))) ));
+                tableSet(&(AS_CLASS(peek(2))->methods), peek(1), peek(0));
+                pop();
+                pop();
+                i++;
+            }
+            tableSet(&vm.globals, vm.stack[0], vm.stack[1]);
+            pop();
+            pop();
+        }
+    }
+    freeSTL(imports);
+}
+
+// INITIALIZE/FREE VM
 void initVM(){
     resetStack();
     initTable(&vm.globals);
@@ -48,10 +92,7 @@ void initVM(){
     vm.initString = NIL_VAL();
     vm.initString = OBJ_VAL(copyString("init", 4));
 
-    for (int i = 0; i < importCount; i++){
-        ImportNative* native = &importLibrary[i];
-        defineNative(native->name, native->function, native->arity);
-    }
+    stl();
 }
 void freeVM(){
     freeTable(&vm.globals);
@@ -60,17 +101,7 @@ void freeVM(){
     freeObjects();
 }
 
-void push(Value value){
-    *vm.stackTop = value;
-    vm.stackTop++;
-}
-Value pop(){
-    vm.stackTop--;
-    return *vm.stackTop;
-}
-static Value peek(int distance){
-    return vm.stackTop[-1 - distance];
-}
+// RUNTIME HELPER FUNCTIONS
 
 static bool isFalsey(Value value){
     #ifdef IS_FALSEY_EXTENDED
@@ -149,9 +180,15 @@ static bool callNative(ObjNative* native, int argCount){
         return false;
     }
     Value result = (native->function)(argCount, vm.stackTop - argCount);
-    vm.stackTop -= (argCount + 1);
-    push(result);
-    return true;
+    if ( !IS_EMPTY(result) ){
+        vm.stackTop -= (argCount + 1);
+        push(result);
+        return true;
+    } else {
+        vm.stackTop -= argCount;
+        runtimeError("Uncaught exception: %s", AS_CSTRING(stringNative(1, (vm.stackTop - 1))) );
+        return false;
+    }
 }
 static bool call(Obj* callee, ObjFunction* function, int argCount){
     // attempts to write new call frame to VM
@@ -285,6 +322,11 @@ static bool invokeFromClass(ObjClass* klass, Value name, int argCount){
 static bool invoke(Value name, int argCount){
     Value receiver = peek(argCount);
     if (!IS_INSTANCE(receiver)){
+        Value sentinel = typeNative(1, &receiver);
+        if (!IS_EMPTY(sentinel)){
+            // sentinel class found.
+            return invokeFromClass(AS_CLASS(sentinel), name, argCount);
+        }
         runtimeError("Only instances have methods.");
         return false;
     }

@@ -159,6 +159,13 @@ ObjBoundMethod* newBoundMethod(Value receiver, Obj* method){
     return bound;
 }
 
+// OBJARRAY METHODS
+ObjArray* newArray(){
+    ObjArray* array = ALLOCATE_OBJ(ObjArray, OBJ_ARRAY);
+    initValueArray(&array->data);
+    return array;
+}
+
 // OBJECT GENERAL METHODS
 
 void printFunction(ObjFunction* function){
@@ -186,6 +193,17 @@ void printObject(Value value){
             printf("%s instance", AS_INSTANCE(value)->klass->name->chars); break;
         case OBJ_BOUND_METHOD:
             printObject(OBJ_VAL(AS_BOUND_METHOD(value)->method));
+        case OBJ_ARRAY: {
+            ObjArray* array = AS_ARRAY(value);
+            int count = array->data.count;
+            printf("[");
+            for (int i = 0 ; i < count; i++){
+                printValue(array->data.values[i]);
+                if (i + 1 == count) break;    // Last item
+                printf(", ");
+            }
+            printf("]");
+        }
         default: break;    // Unreachable.
     }
 }

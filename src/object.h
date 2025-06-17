@@ -17,7 +17,8 @@ typedef enum {
     OBJ_CLOSURE,
     OBJ_CLASS,
     OBJ_INSTANCE,
-    OBJ_BOUND_METHOD
+    OBJ_BOUND_METHOD,    // <-- End of vanilla
+    OBJ_ARRAY
 } ObjType;
 
 #ifdef OBJ_HEADER_COMPRESSION
@@ -167,6 +168,14 @@ typedef struct {
 ObjBoundMethod* newBoundMethod(Value receiver, Obj* method);
 
 
+// ObjArray exposes the ValueArray struct to a Lox end-user
+typedef struct {
+    Obj obj;
+    ValueArray data;
+} ObjArray;
+ObjArray* newArray();
+
+
 // OBJECT GENERAL FUNCTIONS
 void printFunction(ObjFunction* function);
 void printObject(Value value);
@@ -178,7 +187,8 @@ void printObject(Value value);
 #define IS_CLOSURE(value)      (isObjType(value, OBJ_CLOSURE))
 #define IS_CLASS(value)        (isObjType(value, OBJ_CLASS))
 #define IS_INSTANCE(value)     (isObjType(value, OBJ_INSTANCE))
-#define IS_BOUND_METHOD(value) (isObjType(value, OBJ_BOUND_METHOD));
+#define IS_BOUND_METHOD(value) (isObjType(value, OBJ_BOUND_METHOD))
+#define IS_ARRAY(value)        (isObjType(value, OBJ_ARRAY))
 
 static inline bool isObjType(Value value, ObjType type){
     return IS_OBJ(value) && (objType(AS_OBJ(value)) == type);
@@ -194,5 +204,6 @@ static inline bool isObjType(Value value, ObjType type){
 #define AS_CLASS(value)        ((ObjClass*)AS_OBJ(value))
 #define AS_INSTANCE(value)     ((ObjInstance*)AS_OBJ(value))
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
+#define AS_ARRAY(value)        ((ObjArray*)AS_OBJ(value))
 
 #endif

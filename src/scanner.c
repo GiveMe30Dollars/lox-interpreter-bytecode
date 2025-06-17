@@ -287,6 +287,8 @@ Token scanToken(){
         case '.': return makeToken(TOKEN_DOT);
         case '?': return makeToken(TOKEN_QUERY);
         case ':': return makeToken(TOKEN_COLON);
+        case '[': return makeToken(TOKEN_LEFT_BRACKET);
+        case ']': return makeToken(TOKEN_RIGHT_BRACKET);
 
         // Single or double character tokens
         case '!':

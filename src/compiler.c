@@ -742,6 +742,24 @@ static void dot(bool canAssign){
     }
 }
 
+static void array(bool canAssign){
+    uint8_t idxArray = makeConstant(OBJ_VAL(copyString("Array", 5)));
+    emitBytes(OP_GET_GLOBAL, idxArray);
+    uint8_t argCount = 0;
+    if (!check(TOKEN_RIGHT_BRACKET)){
+        do {
+            expression();
+            if (argCount == 255){
+                // About to overflow to 256 arguments
+                error("Cannot have more than 255 arguments.");
+            }
+            argCount++;
+        } while (match(TOKEN_COMMA));
+    }
+    consume(TOKEN_RIGHT_BRACKET, "Expect ']' after arguments.");
+    emitBytes(OP_CALL, argCount);
+}
+
 
 static bool tryParseExpression(TokenType terminator){
     // attempts to parse as expression
@@ -1198,6 +1216,8 @@ ParseRule rules[] = {
 
     [TOKEN_QUERY]         = {NULL,     conditional, PREC_CONDITIONAL},
     [TOKEN_COLON]         = {NULL,     NULL,        PREC_NONE},
+    [TOKEN_LEFT_BRACKET]  = {array,    NULL,        PREC_CALL},
+    [TOKEN_RIGHT_BRACKET] = {NULL,     NULL,        PREC_NONE},
 
     [TOKEN_BANG]          = {unary,    NULL,     PREC_NONE},
     [TOKEN_BANG_EQUAL]    = {NULL,     binary,   PREC_EQUALITY},

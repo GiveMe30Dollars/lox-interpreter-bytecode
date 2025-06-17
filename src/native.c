@@ -1,9 +1,12 @@
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "native.h"
 #include "memory.h"
+#include "vm.h"
 
 
 Value clockNative(int argCount, Value* args){
@@ -11,7 +14,6 @@ Value clockNative(int argCount, Value* args){
 }
 Value stringNative(int argCount, Value* args){
     Value value = args[0];
-    #ifdef VALUE_NAN_BOXING
     if (IS_EMPTY(value)){
         return OBJ_VAL(copyString("<empty>", 7));
     } else if (IS_NIL(value)){
@@ -40,41 +42,7 @@ Value stringNative(int argCount, Value* args){
                 return OBJ_VAL(AS_INSTANCE(value)->klass->name);
         }
     }
-    #else
-    switch(value.type){
-        case VAL_NIL:
-            return OBJ_VAL(copyString("nil", 3));
-        case VAL_BOOL:
-            return OBJ_VAL( AS_BOOL(value) ? (Obj*)copyString("true", 4) : (Obj*)copyString("false", 5) );
-        case VAL_EMPTY:
-            return OBJ_VAL(copyString("<empty>", 7));
-        case VAL_NUMBER: {
-            double number = AS_NUMBER(value);
-            int length = snprintf(NULL, 0, "%g", number);
-            char* buffer = ALLOCATE(char, length + 1);
-            snprintf(buffer, length + 1, "%g", number);
-            return OBJ_VAL(takeString(buffer, length));
-        }
-        case VAL_OBJ: {
-            switch(OBJ_TYPE(value)){
-                case OBJ_STRING:
-                    return value;
-                case OBJ_FUNCTION:
-                    return OBJ_VAL(AS_FUNCTION(value)->name);
-                case OBJ_NATIVE: 
-                    return OBJ_VAL(AS_NATIVE(value)->name);
-                case OBJ_CLOSURE:
-                    return OBJ_VAL(AS_CLOSURE(value)->function->name);
-                case OBJ_CLASS:
-                    return OBJ_VAL(AS_CLASS(value)->name);
-                case OBJ_INSTANCE:
-                    return OBJ_VAL(AS_INSTANCE(value)->klass->name);
-            }
-        }
-    }
-    // Default case: empty string.
     return OBJ_VAL(copyString("", 0));
-    #endif
 }
 Value concatenateNative(int argCount, Value* args){
     // Concatenates any number of strings, up to UINT8_MAX
@@ -97,10 +65,96 @@ Value concatenateNative(int argCount, Value* args){
     return(OBJ_VAL(result));
 }
 
-ImportNative importLibrary[] = {
-    {"clock", clockNative, 0},
-    {"string", stringNative, 1},
-    {"concatenate", concatenateNative, -1}
-};
+Value notImplementedNative(int argCount, Value* args){
+    args[-1] = OBJ_VAL(copyString("Not implemented.", 16));
+    return EMPTY_VAL();
+}
 
-size_t importCount = sizeof(importLibrary) / sizeof(ImportNative);
+Value typeNative(int argCount, Value* args){
+    Value value = args[0];
+    if (IS_NIL(value)){
+        return NIL_VAL();
+    } else if (IS_ARRAY(value)){
+        Value klass;
+        if (tableGet(&vm.globals, OBJ_VAL(copyString("Array", 5)), &klass) && IS_CLASS(klass)){
+            return klass;
+        }
+    }
+    return EMPTY_VAL();
+}
+
+
+
+
+static inline Value indexNotNumber(){
+    return OBJ_VAL(copyString("Index must be a whole number.", 29));
+}
+static inline Value indexOutOfRange(){
+    return OBJ_VAL(copyString("Index out of range.", 19));
+}
+Value arrayInitNative(int argCount, Value* args){
+    ObjArray* array = newArray();
+    for (int i = 0; i < argCount; i++){
+        writeValueArray(&array->data, args[i]);
+    }
+    return OBJ_VAL(array);
+}
+Value arrayGetNative(int argCount, Value* args){
+    ObjArray* array = AS_ARRAY(args[-1]);
+    if (!IS_NUMBER(args[0]) || floor(AS_NUMBER(args[0])) != AS_NUMBER(args[0])) {
+        args[-1] = indexNotNumber();
+        return EMPTY_VAL();
+    }
+    int idx = (int)AS_NUMBER(args[0]);
+    if (idx >= array->data.count || idx < -array->data.count){
+        args[-1] = indexOutOfRange();
+        return EMPTY_VAL();
+    }
+    if (idx < 0) idx += array->data.count;
+    return array->data.values[idx];
+}
+Value arraySetNative(int argCOunt, Value* args){
+    ObjArray* array = AS_ARRAY(args[-1]);
+    if (!IS_NUMBER(args[0]) || floor(AS_NUMBER(args[0])) != AS_NUMBER(args[0])) {
+        args[-1] = indexNotNumber();
+        return EMPTY_VAL();
+    }
+    int idx = (int)AS_NUMBER(args[0]);
+    if (idx >= array->data.count || idx < -array->data.count){
+        args[-1] = indexOutOfRange();
+        return EMPTY_VAL();
+    }
+    if (idx < 0) idx += array->data.count;
+    array->data.values[idx] = args[1];
+    return NIL_VAL();
+}
+
+
+
+ImportInfo buildSTL(){
+
+    const ImportStruct lib[] = {
+        IMPORT_NATIVE("clock", clockNative, 0),
+        IMPORT_NATIVE("string", stringNative, 1),
+        IMPORT_NATIVE("concatenate", concatenateNative, -1),
+        IMPORT_NATIVE("nan", notImplementedNative, -1),
+
+        IMPORT_SENTINEL("Array", 3),
+            IMPORT_NATIVE("init", arrayInitNative, -1),
+            IMPORT_NATIVE("get", arrayGetNative, 1),
+            IMPORT_NATIVE("set", arraySetNative, 2)
+    };
+
+    ImportStruct* library = malloc(sizeof(lib));
+    if (library == NULL) {
+        fprintf(stderr, "Allocation for STL failed.\n");
+        exit(74);
+    }
+    memcpy(library, &lib, sizeof(lib));
+    size_t count = sizeof(lib) / sizeof(ImportStruct);
+    return (ImportInfo){count, library};
+}
+
+void freeSTL(ImportInfo library){
+    free(library.start);
+}
