@@ -38,7 +38,6 @@ The currently implemented operation codes (opcodes) are as follows:
 
 - **`OP_NOT`**: Pops the topmost element and evaluates `!boolean`. Pushes the result onto the stack.
 - **`OP_NEGATE`**: Pops the topmost element and evaluates `- number`. Pushes the result onto the stack.
-- **`OP_UNARY_PLUS`**: Asserts the topmost element is of type `Number`. Does nothing.
 
 - **`OP_PRINT`**: Pops the topmost element and prints its value.
 - **`OP_JUMP_IF_FALSE`** `byteX2`: Moves the instruction pointer (`vm.ip`) forwards by `byteX2` bytes if the top of the stack evaluates to `false`.
@@ -63,7 +62,23 @@ The currently implemented operation codes (opcodes) are as follows:
 - **`OP_RETURN`**: Pops the call stack and returns the topmost element in the popped frame. Exit the VM and return `INTERPRETER_OK` if the popped frame is top-level code.
 
 - **`OP_CLASS`** `cidx`: Declares a new Lox class of name `chunk->constants[cidx]`
-- **`OP_GET_PROPERTY`** `cidx`: Gets the property of identifier `chunk->constants[cidx]` for the instance at the top of the stack. Fields shadow methods.
+- **`OP_GET_PROPERTY`** `cidx`: Gets the property of identifier `chunk->constants[cidx]` for the instance at the top of the stack.
+  - Fields shadow methods.
+  - If a method is fetched, bind it to this instance using an `ObjBoundMethod`.
 - **`OP_SET_PROPERTY`** `cidx` : Sets the field of identifier `chunk->constants[cidx]` for the instance in the topmost 2nd slot to the value at the top of the stack. Pops the instance from the stack.
 - **`OP_METHOD`**: Defines a function object at the top of the stack to be a method of the class underneath. Pops the function object.
 - **`OP_INVOKE`** `cidx` `argc`: Optimized combination for `OP_GET_PROPERTY` and `OP_CALL`.
+  - The stack is arranged such that an instance object, followed by `argc` call arguments are on top of the stack.
+  - Get the method `chunk->constants[cidx]` through this instance, and invoke it without creating an `ObjBoundMethod`.
+  - Fields shadow methods. If a field of this name is found, decompose to unoptimized call path.
+
+- **`OP_INHERIT`**: Causes a class to inherit another.
+  - The stack is arranged such that `superclass` and `subclass` are on top of the stack.
+  - Let subclass inherit superclass, and pop subclass fromm stack. Superclass remains as local variable `super` for method closures.
+- **`OP_GET_SUPER`** `cidx`: Superclass method access.
+  - The stack is arranged such that the current instance object and the `superclass` are on top of the stack.
+  - Get the method `chunk->constants[cidx]` found in `superclass`, and bind it to this instance using an `ObjBoundMethod`.
+  - Pop both the instance and superclass objects.
+- **`OP_SUPER_INVOKE`** `cidx` `argc`: Optimized combination of `OP_GET_SUPER` and `OP_CALL`.
+  - The stack is arranged such that the current instance object, `argc` call arguments and its superclass are on top of the stack.
+  - Gets the method `chunk->constants[cidx]` from the superclass, pop the superclass, and invoke it without creating an `ObjBoundMethod`.

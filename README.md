@@ -19,6 +19,8 @@ For further information, check the [documentation](docs).
 <img src=https://github.com/user-attachments/assets/5e172e18-70e8-4ae0-b999-658f90d3c559 />
 </p>
 
+17 June 2025: Milestone achieved! All standard Lox functionality implemented.
+
 **Current status:** Implemented global and local variables, control flow, functions and closures.  
 Additionally added ternary conditional (+ Elvis operator), compound assignment operators, break and continue statements for loops, anonymous function expressions.
 

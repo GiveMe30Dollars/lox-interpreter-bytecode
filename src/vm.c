@@ -289,7 +289,7 @@ static bool invoke(ObjString* name, int argCount){
     ObjInstance* instance = AS_INSTANCE(receiver);
     Value value;
     if (tableGet(&instance->fields, OBJ_VAL(name), &value)){
-        // treat as regular call by replacing 'this' with function object
+        // treat as regular call by replacing 'this' with field (function object?)
         vm.stackTop[- argCount - 1] = value;
         return callValue(value, argCount);
     }
