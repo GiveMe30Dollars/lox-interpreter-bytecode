@@ -1,4 +1,12 @@
-# Bytecode-Based Lox Interpreter
+# BRANCH: metaclass
+
+This branch implements expression-based class inheritance.
+
+Some adherence to the Lox specification is lost as a result: inheritance from objects that are not classes or arrays of classes, or from itself, is a runtime error.
+
+Will be behind branch `containers`, which is the preferred experimental branch.
+
+## Bytecode-Based Lox Interpreter
 
 This is an ongoing C implemetation of the Lox interpreter as described in the second half of the book:  
 - **"Crafting Interpreters"**: https://craftinginterpreters.com/ by Robert Nystrom.
