@@ -41,16 +41,17 @@ static int defineNative(ImportNative native, bool isStaticMethod, const int i){
     // also handles nonstatic and static methods
     push(OBJ_VAL( copyString(native.name, (int)strlen(native.name)) ));
     push(OBJ_VAL( newNative(native.function, native.arity, AS_STRING(peek(0))) ));
-    HashTable* target = vm.stackTop - vm.stack > 2 
-        ? (isStaticMethod ? &AS_CLASS(peek(2))->statics : &AS_CLASS(peek(2))->methods) 
-        : &vm.stl;
+    HashTable* target = vm.stackTop - vm.stack > 2 ? &AS_CLASS(peek(2))->methods : &vm.stl;
     tableSet(target, peek(1), peek(0));
+    if (isStaticMethod) 
+        tableSet(&AS_CLASS(peek(2))->statics, peek(1), peek(0));
     pop();
     pop();
     return i + 1;
 }
 static int defineSentinel(ImportSentinel sentinel, ImportInfo imports, const int i){
-    // 
+    // push onto stack to ensure they survive GC
+    // also sets native static and nonstatic methods
     push(OBJ_VAL( copyString(sentinel.name, (int)strlen(sentinel.name)) ));
     push(OBJ_VAL( newClass(AS_STRING(peek(0))) ));
     for (int j = 1; j <= sentinel.numOfMethods; j++){
