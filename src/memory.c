@@ -36,7 +36,7 @@ void* reallocate(void* ptr, size_t oldSize, size_t newSize){
 
 void freeObject(Obj* object){
     #ifdef DEBUG_LOG_GC
-    printf("%p free type %d\n", (void*)object, object->type);
+    printf("%p free type %d\n", (void*)object, (int)objType(object));
     #endif
 
     switch(objType(object)){
@@ -84,8 +84,16 @@ void freeObject(Obj* object){
             FREE(ObjBoundMethod, object);
             break;
         }
+        case OBJ_ARRAY: {
+            ObjArray* array = (ObjArray*)object;
+            freeValueArray(&array->data);
+            FREE(ObjArray, object);
+            break;
+        }
     }
 }
+
+
 void freeObjects(){
     Obj* object = vm.objects;
     while (object != NULL){
@@ -146,9 +154,10 @@ static void markRoots(){
         markObject((Obj*)upvalue);
     }
     
-    // mark all global variables
+    // mark all global variables and STL
+    markTable(&vm.stl);
     markTable(&vm.globals);
-    markObject(AS_OBJ(vm.initString));
+    markValue(vm.initString);
 
     // mark compiler roots
     markCompilerRoots();
@@ -188,6 +197,7 @@ static void blackenObject(Obj* object){
             ObjClass* klass = (ObjClass*)object;
             markObject((Obj*)klass->name);
             markTable(&klass->methods);
+            markTable(&klass->statics);
             break;
         }
         case OBJ_INSTANCE: {
@@ -200,6 +210,12 @@ static void blackenObject(Obj* object){
             ObjBoundMethod* bound = (ObjBoundMethod*)object;
             markValue(bound->receiver);
             markObject(bound->method);
+            break;
+        }
+        case OBJ_ARRAY: {
+            ObjArray* array = (ObjArray*)object;
+            markArray(&array->data);
+            break;
         }
     }
 }
@@ -235,12 +251,28 @@ void sweep(){
     }
 }
 
+#ifdef DEBUG_LOG_GC
+void printObjects(){
+    Obj* curr = vm.objects;
+    printf("Objects: ");
+    if (curr == NULL) printf("None.\n");
+    else printf("\n");
+    while (curr != NULL){
+        printf("       | ");
+        printObject(OBJ_VAL(curr));
+        printf("\n");
+        curr = objNext(curr);
+    }
+}
+#endif
+
 void collectGarbage(){
     // triggers mark-and-sweep garbage collection
     // can be triggered during compile-time and runtime
 
     #ifdef DEBUG_LOG_GC
     printf("--gc begin--\n");
+    printf("  initial: %zu\n", vm.bytesAllocated);
     size_t before = vm.bytesAllocated;
     #endif
 

@@ -30,7 +30,8 @@ typedef enum {
     TYPE_FUNCTION,
     TYPE_LAMBDA,
     TYPE_METHOD,
-    TYPE_INITIALIZER
+    TYPE_INITIALIZER,
+    TYPE_STATIC_METHOD
 } FunctionType;
 
 typedef struct {
@@ -1100,14 +1101,17 @@ static void lambda(bool canAssign){
     function(TYPE_LAMBDA);
 }
 
-static void method(){
+static void method(FunctionType type){
     consume(TOKEN_IDENTIFIER, "Expect method name.");
     uint8_t nameConstant = identifierConstant(&parser.previous);
-    FunctionType type = TYPE_METHOD;
-    if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0)
-        type = TYPE_INITIALIZER;
-    function(type);
-    emitConstant(OP_METHOD, nameConstant);
+    FunctionType funcType = type;
+    if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0){
+        if (type == TYPE_STATIC_METHOD)
+            error("Initializer cannot be declared as 'static'.");
+        else funcType = TYPE_INITIALIZER;
+    }
+    function(funcType);
+    emitConstant((funcType == TYPE_STATIC_METHOD ? OP_STATIC_METHOD : OP_METHOD), nameConstant);
 }
 static void classDeclaration(){
     consume(TOKEN_IDENTIFIER, "Expect class name.");
@@ -1141,7 +1145,7 @@ static void classDeclaration(){
                 if (identifiersEqual(&className, &parser.previous))
                     error("A class cannot inherit from itself.");
             } while (match(TOKEN_COMMA));
-            consume(TOKEN_RIGHT_BRACKET, "Expect ']' after superclass array contents.");
+            consume(TOKEN_RIGHT_BRACKET, "Expect ']' after superclass array literal.");
             emitBytes(OP_CALL, argCount);
             classCompiler.superclassType = SUPERCLASS_MULTIPLE;
         } 
@@ -1170,7 +1174,8 @@ static void classDeclaration(){
 
     consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
     while (!check(TOKEN_EOF) && !check(TOKEN_RIGHT_BRACE)){
-        method();
+        if (match(TOKEN_STATIC)) method(TYPE_STATIC_METHOD);
+        else method(TYPE_METHOD);
     }
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
 
@@ -1186,6 +1191,10 @@ static void classDeclaration(){
 static void this_ (bool canAssign){
     if (currentClass == NULL){
         error("Cannot use 'this' outside a class.");
+        return;
+    }
+    if (current->type == TYPE_STATIC_METHOD){
+        error("Cannot use 'this' in a static method.");
         return;
     }
     // treat as local variable
@@ -1326,6 +1335,11 @@ ParseRule rules[] = {
     [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
     [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
     [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
+
+    [TOKEN_BREAK]         = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_CONTINUE]      = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_STATIC]        = {NULL,     NULL,   PREC_NONE},
+
     [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
     [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
 };

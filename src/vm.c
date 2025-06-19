@@ -78,22 +78,22 @@ void stl(){
 // INITIALIZE/FREE VM
 void initVM(){
     resetStack();
+    vm.initString = NIL_VAL();
 
-    initTable(&vm.stl);
-    initTable(&vm.globals);
-    initTable(&vm.strings);
-
-    // do this BEFORE initString
+    // do this BEFORE anything, really
     vm.bytesAllocated = 0;
     vm.nextGC = 1024 * 1024;
     vm.grayCount = 0;
     vm.grayCapacity = 0;
     vm.grayStack = NULL;
 
+    initTable(&vm.stl);
+    initTable(&vm.globals);
+    initTable(&vm.strings);
+
     vm.openUpvalues = NULL;
     vm.objects = NULL;
     vm.hash = 0;
-    vm.initString = NIL_VAL();
     vm.initString = OBJ_VAL(copyString("init", 4));
 
     stl();
@@ -325,7 +325,30 @@ static bool invokeFromClass(ObjClass* klass, Value name, int argCount){
 }
 static bool invoke(Value name, int argCount){
     Value receiver = peek(argCount);
-    if (!IS_INSTANCE(receiver)){
+    if (IS_INSTANCE(receiver)){
+        ObjInstance* instance = AS_INSTANCE(receiver);
+        Value value;
+        if (tableGet(&instance->fields, name, &value)){
+            // treat as regular call by replacing 'this' with field
+            vm.stackTop[- argCount - 1] = value;
+            return callValue(value, argCount);
+        }
+        return invokeFromClass(instance->klass, name, argCount);
+    } else if (IS_CLASS(receiver)){
+        // static method
+        ObjClass* klass = AS_CLASS(receiver);
+        Value value;
+        if (tableGet(&klass->statics, name, &value)) {
+            // Treat as regular call
+            vm.stackTop[- argCount - 1] = value;
+            return callValue(value, argCount);
+        } else {
+            // no static method found
+            runtimeError("No static method of name '%s'", AS_CSTRING(name));
+            return false;
+        }
+    } else {
+        // Find sentinel
         Value sentinel = typeNative(1, &receiver);
         if (!IS_EMPTY(sentinel)){
             // sentinel class found.
@@ -334,14 +357,6 @@ static bool invoke(Value name, int argCount){
         runtimeError("Only instances have methods.");
         return false;
     }
-    ObjInstance* instance = AS_INSTANCE(receiver);
-    Value value;
-    if (tableGet(&instance->fields, name, &value)){
-        // treat as regular call by replacing 'this' with field (function object?)
-        vm.stackTop[- argCount - 1] = value;
-        return callValue(value, argCount);
-    }
-    return invokeFromClass(instance->klass, name, argCount);
 }
 
 
@@ -596,6 +611,19 @@ static InterpreterResult run(){
                         break;
                     }
                     klass = instance->klass;
+                } else if (IS_CLASS(peek(0))){
+                    // look for static method
+                    // no binding required
+                    Value klass = peek(0);
+                    Value value;
+                    if (tableGet(&AS_CLASS(klass)->statics, name, &value)){
+                        pop();
+                        push(value);
+                        break;
+                    } else {
+                        runtimeError("No static method of name '%s'.", AS_CSTRING(name));
+                        return INTERPRETER_RUNTIME_ERROR;
+                    }
                 } else {
                     // look for sentinel class methods
                     Value value = peek(0);
@@ -629,6 +657,14 @@ static InterpreterResult run(){
                 defineMethod(READ_CONSTANT());
                 break;
             }
+            case OP_STATIC_METHOD: {
+                Value name = READ_CONSTANT();
+                Value method = peek(0);
+                ObjClass* klass = AS_CLASS(peek(1));
+                tableSet(&klass->statics, name, method);
+                pop();
+                break;
+            }
             case OP_INVOKE: {
                 Value method = READ_CONSTANT();
                 int argCount = READ_BYTE();
@@ -647,6 +683,7 @@ static InterpreterResult run(){
                 Value predecessor = peek(1);
                 if (IS_CLASS(predecessor)){
                     tableAddAll(&AS_CLASS(predecessor)->methods, &subclass->methods);
+                    tableAddAll(&AS_CLASS(predecessor)->statics, &subclass->statics);
                     // Pop subclass. Superclass remains as local variable.
                     pop();
                     break;
@@ -660,8 +697,9 @@ static InterpreterResult run(){
                             return INTERPRETER_RUNTIME_ERROR;
                         }
                         tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
+                        tableAddAll(&AS_CLASS(superclass)->statics, &subclass->statics);
                     }
-                    // Pop subclass. Superclass array remains as variable.
+                    // Pop subclass. Superclass array remains as local variable.
                     pop();
                     break;
                 } else {

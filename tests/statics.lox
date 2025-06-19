@@ -1,0 +1,16 @@
+class Math {
+    static pi(){
+        return 3.1415;
+    }
+    method(){
+        print "method!";
+    }
+}
+
+var a = Math.pi;
+print a();
+
+var b = Math();
+b.method();
+// b.pi();
+print Math.pi();

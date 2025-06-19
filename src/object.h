@@ -147,6 +147,7 @@ typedef struct {
     Obj obj;
     ObjString* name;
     HashTable methods;
+    HashTable statics;
 } ObjClass;
 ObjClass* newClass(ObjString* name);
 

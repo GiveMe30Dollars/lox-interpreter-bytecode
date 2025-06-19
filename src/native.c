@@ -125,6 +125,7 @@ static inline Value indexOutOfRange(){
 }
 Value arrayInitNative(int argCount, Value* args){
     ObjArray* array = newArray();
+    args[-1] = OBJ_VAL(array);
     for (int i = 0; i < argCount; i++){
         writeValueArray(&array->data, args[i]);
     }
