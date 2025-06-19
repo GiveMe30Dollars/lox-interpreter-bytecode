@@ -317,6 +317,6 @@ Token scanToken(){
         }
 
         default:
-            return errorToken("Unidenfied character.");
+            return errorToken("Unidentified character.");
     }
 }
