@@ -76,6 +76,10 @@ The currently implemented operation codes (opcodes) are as follows:
 - **`OP_INHERIT`**: Causes a class to inherit another.
   - The stack is arranged such that `superclass` and `subclass` are on top of the stack.
   - Let subclass inherit superclass, and pop subclass fromm stack. Superclass remains as local variable `super` for method closures.
+- **`OP_INHERIT_MULTIPLE`**: Causes a class to inherit an array of superclasses.
+  - The stack is arranged such that `superclassArray` and `subclass` are on top of the stack.
+  - Traversing from the last element to the first, copy down all methods into subclass.
+  - Pop subclass fromm stack. Superclass array remains as local variable `super` for method closures.
 - **`OP_GET_SUPER`** `cidx`: Superclass method access.
   - The stack is arranged such that the current instance object and the `superclass` are on top of the stack.
   - Get the method `chunk->constants[cidx]` found in `superclass`, and bind it to this instance using an `ObjBoundMethod`.
