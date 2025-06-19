@@ -6,7 +6,8 @@
 
 typedef enum {
     IMPORT_NATIVE,
-    IMPORT_SENTINEL
+    IMPORT_SENTINEL,
+    IMPORT_STATIC
 } ImportHeader;
 
 typedef struct {
@@ -35,6 +36,8 @@ typedef struct {
 
 #define IMPORT_NATIVE(name, function, arity) \
     ((ImportStruct){IMPORT_NATIVE, {.native = {name, function, arity}}})
+#define IMPORT_STATIC(name, function, arity) \
+    ((ImportStruct){IMPORT_STATIC, {.native = {name, function, arity}}})
 #define IMPORT_SENTINEL(name, num) \
     ((ImportStruct){IMPORT_SENTINEL, {.sentinel = {name, num}}})
 

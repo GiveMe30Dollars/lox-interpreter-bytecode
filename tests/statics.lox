@@ -18,20 +18,9 @@ print Math.pi();           // Expect: 3.1415
 // Math.method();          // Expect: runtime error
 
 class Derived < Math {
-    /*
-    static pi(){
-        // print this;     // Expect: compile error
-        print super.pi;
-        print super.pi();
-    }
-    static demo(){
-        print super.method; // Expect: compile error
-    }
-    */
     nonstatic(){
         print super.method;
         print super.pi;
     }
 }
-//Derived.demo();
 Derived().nonstatic();

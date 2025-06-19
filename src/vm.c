@@ -35,14 +35,32 @@ static Value peek(int distance){
 }
 
 
-// native function/method parsing
-static void defineNative(const char* name, NativeFn function, int arity){
+// native function, method and static method parsing
+static int defineNative(ImportNative native, bool isStaticMethod, const int i){
     // push onto stack to ensure they survive if GC triggered by reallocation of hash table
-    push(OBJ_VAL( copyString(name, (int)strlen(name)) ));
-    push(OBJ_VAL( newNative(function, arity, AS_STRING(vm.stack[0])) ));
-    tableSet(&vm.stl, vm.stack[0], vm.stack[1]);
+    // also handles nonstatic and static methods
+    push(OBJ_VAL( copyString(native.name, (int)strlen(native.name)) ));
+    push(OBJ_VAL( newNative(native.function, native.arity, AS_STRING(peek(0))) ));
+    HashTable* target = vm.stackTop - vm.stack > 2 
+        ? (isStaticMethod ? &AS_CLASS(peek(2))->statics : &AS_CLASS(peek(2))->methods) 
+        : &vm.stl;
+    tableSet(target, peek(1), peek(0));
     pop();
     pop();
+    return i + 1;
+}
+static int defineSentinel(ImportSentinel sentinel, ImportInfo imports, const int i){
+    // 
+    push(OBJ_VAL( copyString(sentinel.name, (int)strlen(sentinel.name)) ));
+    push(OBJ_VAL( newClass(AS_STRING(peek(0))) ));
+    for (int j = 1; j <= sentinel.numOfMethods; j++){
+        ImportStruct method = imports.start[i + j];
+        defineNative(method.as.native, (method.header == IMPORT_STATIC), j);
+    }
+    tableSet(&vm.stl, peek(1), peek(0));
+    pop();
+    pop();
+    return i + sentinel.numOfMethods + 1;
 }
 
 void stl(){
@@ -50,26 +68,9 @@ void stl(){
     for (int i = 0; i < imports.count; /* manual increment */ ){
         ImportStruct imp = imports.start[i];
         if (imp.header == IMPORT_NATIVE){
-            ImportNative native = imp.as.native;
-            defineNative(native.name, native.function, native.arity);
-            i++;
+            i = defineNative(imp.as.native, false, i);
         } else {
-            ImportSentinel sentinel = imp.as.sentinel;
-            push(OBJ_VAL( copyString(sentinel.name, (int)strlen(sentinel.name)) ));
-            push(OBJ_VAL( newClass(AS_STRING(peek(0))) ));
-            i++;
-            for (int j = 0; j < sentinel.numOfMethods; j++){
-                ImportNative method = imports.start[i].as.native;
-                push(OBJ_VAL( copyString(method.name, (int)strlen(method.name)) ));
-                push(OBJ_VAL( newNative(method.function, method.arity, AS_STRING(peek(0))) ));
-                tableSet(&(AS_CLASS(peek(2))->methods), peek(1), peek(0));
-                pop();
-                pop();
-                i++;
-            }
-            tableSet(&vm.stl, vm.stack[0], vm.stack[1]);
-            pop();
-            pop();
+            i = defineSentinel(imp.as.sentinel, imports, i);
         }
     }
     freeSTL(imports);

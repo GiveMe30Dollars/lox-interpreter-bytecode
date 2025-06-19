@@ -124,6 +124,26 @@ static inline Value indexOutOfRange(){
     return OBJ_VAL(copyString("Index out of range.", 19));
 }
 Value arrayInitNative(int argCount, Value* args){
+    if (argCount == 0){
+        return OBJ_VAL(newArray());
+    }
+    if (argCount > 1){
+        args[-1] = OBJ_VAL(copyString("'Array' constructor takes at most 1 argument.", 45));
+        return EMPTY_VAL();
+    }
+    if (!IS_NUMBER(args[0]) || floor(AS_NUMBER(args[0])) != AS_NUMBER(args[0])) {
+        args[-1] = indexNotNumber();
+        return EMPTY_VAL();
+    }
+    int num = (int)AS_NUMBER(args[0]);
+    ObjArray* array = newArray();
+    args[-1] = OBJ_VAL(array);
+    for (int i = 0; i < num; i++){
+        writeValueArray(&array->data, NIL_VAL());
+    }
+    return OBJ_VAL(array);
+}
+Value arrayRawNative(int argCount, Value* args){
     ObjArray* array = newArray();
     args[-1] = OBJ_VAL(array);
     for (int i = 0; i < argCount; i++){
@@ -177,8 +197,9 @@ ImportInfo buildSTL(){
         IMPORT_SENTINEL("Number", 0),
         IMPORT_SENTINEL("String", 0),
         IMPORT_SENTINEL("Function", 0),
-        IMPORT_SENTINEL("Array", 3),
+        IMPORT_SENTINEL("Array", 4),
             IMPORT_NATIVE("init", arrayInitNative, -1),
+            IMPORT_STATIC("@raw", arrayRawNative, -1),
             IMPORT_NATIVE("get", arrayGetNative, 1),
             IMPORT_NATIVE("set", arraySetNative, 2)
     };

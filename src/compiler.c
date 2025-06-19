@@ -758,6 +758,7 @@ static void dot(bool canAssign){
 
 static void array(bool canAssign){
     uint8_t idxArray = syntheticConstant("Array");
+    uint8_t idxRaw = syntheticConstant("@raw");
     emitConstant(OP_GET_STL, idxArray);
     uint8_t argCount = 0;
     if (!check(TOKEN_RIGHT_BRACKET)){
@@ -771,7 +772,8 @@ static void array(bool canAssign){
         } while (match(TOKEN_COMMA));
     }
     consume(TOKEN_RIGHT_BRACKET, "Expect ']' after array contents.");
-    emitConstant(OP_CALL, argCount);
+    emitConstant(OP_INVOKE, idxRaw);
+    emitByte(argCount);
 }
 
 static void subscript(bool canAssign){
@@ -1111,7 +1113,8 @@ static void method(FunctionType type){
         else funcType = TYPE_INITIALIZER;
     }
     function(funcType);
-    emitConstant((funcType == TYPE_STATIC_METHOD ? OP_STATIC_METHOD : OP_METHOD), nameConstant);
+    Opcode instruction = (funcType == TYPE_STATIC_METHOD) ? OP_STATIC_METHOD : OP_METHOD;
+    emitConstant(instruction, nameConstant);
 }
 static void classDeclaration(){
     consume(TOKEN_IDENTIFIER, "Expect class name.");
