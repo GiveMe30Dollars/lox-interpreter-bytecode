@@ -1,4 +1,10 @@
-# Bytecode-Based Lox Interpreter
+# BRANCH: containers
+
+This is the main experimental branch for implementing container types, multiple inheritance and the standard library.
+
+Will be ahead of `master`.
+
+## Bytecode-Based Lox Interpreter
 
 This is an ongoing C implemetation of the Lox interpreter as described in the second half of the book:  
 - **"Crafting Interpreters"**: https://craftinginterpreters.com/ by Robert Nystrom.
