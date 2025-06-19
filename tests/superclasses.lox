@@ -1,0 +1,33 @@
+class A {
+  method() {
+    print "A method";
+  }
+}
+
+class B < A {
+  method() {
+    print "B method";
+  }
+
+  test() {
+    super.method();
+  }
+}
+
+class C < B {}
+C().test();             // Expect: A method
+
+
+class D < [B, A] {}
+D().method();           // Expect: B method
+class E < [A, B] {}
+E().method();           // Expect: A method
+
+class F < [B, A] {
+    method() {
+        //super.method();     // Expect: compile error
+        super[0].method();
+        super[1].method();
+    }
+}
+F().method();                 // Expect: B method, A method

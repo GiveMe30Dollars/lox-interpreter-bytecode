@@ -399,7 +399,7 @@ static InterpreterResult run(){
             case OP_TRUE:  push(BOOL_VAL(true)); break;
             case OP_FALSE: push(BOOL_VAL(false)); break;
             case OP_DUPLICATE: {
-                push(peek(0));
+                push(peek(READ_BYTE()));
                 break;
             }
             case OP_POP:   pop(); break;
@@ -585,25 +585,27 @@ static InterpreterResult run(){
             case OP_GET_PROPERTY: {
                 ObjClass* klass = NULL;
                 Value name = READ_CONSTANT();
-                if (!IS_INSTANCE(peek(0))){
-                    Value value = peek(0);
-                    Value sentinel = typeNative(1, &value);
-                    if (IS_EMPTY(sentinel)){
-                        runtimeError("Only instances have properties.");
-                        return INTERPRETER_RUNTIME_ERROR;
-                    } else {
-                        klass = AS_CLASS(sentinel);
-                    }
-                } else {
+                if (IS_INSTANCE(peek(0))){
+                    // if property found, use that
+                    // else look for class methods
                     ObjInstance* instance = AS_INSTANCE(peek(0));
-
                     Value value;
                     if (tableGet(&instance->fields, name, &value)){
-                        pop();    // Instance
+                        pop();    // Pop instance
                         push(value);
                         break;
                     }
                     klass = instance->klass;
+                } else {
+                    // look for sentinel class methods
+                    Value value = peek(0);
+                    Value sentinel = typeNative(1, &value);
+                    if (IS_EMPTY(sentinel)){
+                        runtimeError("This object does not have properties.");
+                        return INTERPRETER_RUNTIME_ERROR;
+                    } else {
+                        klass = AS_CLASS(sentinel);
+                    }
                 }
                 if (!bindMethod(klass, name)){
                     return INTERPRETER_RUNTIME_ERROR;
@@ -641,16 +643,31 @@ static InterpreterResult run(){
                 break;
             }
             case OP_INHERIT: {
-                Value superclass = peek(1);
-                if (!IS_CLASS(superclass)){
-                    runtimeError("Superclass must be a class.");
+                ObjClass* subclass = AS_CLASS(peek(0));
+                Value predecessor = peek(1);
+                if (IS_CLASS(predecessor)){
+                    tableAddAll(&AS_CLASS(predecessor)->methods, &subclass->methods);
+                    // Pop subclass. Superclass remains as local variable.
+                    pop();
+                    break;
+                    
+                } else if (IS_ARRAY(predecessor)) {
+                    ObjArray* superclassArray = AS_ARRAY(predecessor);
+                    for (int i = superclassArray->data.count - 1; i >= 0; i--){
+                        Value superclass = superclassArray->data.values[i];
+                        if (!IS_CLASS(superclass)){
+                            runtimeError("Superclass element must be a class.");
+                            return INTERPRETER_RUNTIME_ERROR;
+                        }
+                        tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
+                    }
+                    // Pop subclass. Superclass array remains as variable.
+                    pop();
+                    break;
+                } else {
+                    runtimeError("Superclass must be a class or an array of classes.");
                     return INTERPRETER_RUNTIME_ERROR;
                 }
-                ObjClass* subclass = AS_CLASS(peek(0));
-                tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
-                // Pop subclass. Superclass remains as local variable.
-                pop();
-                break;
             }
             case OP_GET_SUPER: {
                 Value name = READ_CONSTANT();

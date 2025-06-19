@@ -66,7 +66,7 @@ int disassembleInstruction(Chunk* chunk, int offset){
         case OP_NIL:       return simpleInstruction("OP_NIL", offset);
         case OP_TRUE:      return simpleInstruction("OP_TRUE", offset);
         case OP_FALSE:     return simpleInstruction("OP_FALSE", offset);
-        case OP_DUPLICATE: return simpleInstruction("OP_DUPLICATE", offset);
+        case OP_DUPLICATE: return byteInstruction("OP_DUPLICATE", chunk, offset);
         case OP_POP:       return simpleInstruction("OP_POP", offset);
         case OP_POPN:
             return byteInstruction("OP_POPN", chunk, offset);

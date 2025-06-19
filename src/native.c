@@ -157,7 +157,7 @@ Value arraySetNative(int argCOunt, Value* args){
     }
     if (idx < 0) idx += array->data.count;
     array->data.values[idx] = args[1];
-    return NIL_VAL();
+    return args[1];
 }
 
 

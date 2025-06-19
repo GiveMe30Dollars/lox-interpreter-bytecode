@@ -72,9 +72,15 @@ typedef struct Compiler {
 } Compiler;
 
 // All logic for handling this struct is in classDeclaration
+typedef enum {
+    SUPERCLASS_NONE,
+    SUPERCLASS_SINGLE,
+    SUPERCLASS_MULTIPLE
+} SuperclassType;
 typedef struct ClassCompiler {
     struct ClassCompiler* enclosing;
-    bool hasSuperclass;
+    SuperclassType superclassType;
+    
 } ClassCompiler;
 
 
@@ -240,8 +246,8 @@ static uint8_t makeConstant(Value value){
     tableSet(&current->existingConstants, value, NUMBER_VAL(constant));
     return (uint8_t)constant;
 }
-static void emitConstant(Value value){
-    emitBytes(OP_CONSTANT, makeConstant(value));
+static void emitConstant(Opcode instruction, uint8_t operand){
+    emitBytes(instruction, operand);
 }
 static void emitReturn(){
     // if initializer, return 'this' on reserved slot 0
@@ -403,12 +409,14 @@ static void parsePrecedence(Precedence precedence);
 // PARSER EXPRESSION FUNCTIONS
 static void number(bool canAssign){
     double value = strtod(parser.previous.start, NULL);
-    emitConstant(NUMBER_VAL(value));
+    uint8_t constant = makeConstant(NUMBER_VAL(value));
+    emitConstant(OP_CONSTANT, constant);
 }
 static void string(bool canAssign){
     // quotation marks are already stripped (changed after string interpolation added)
     // (copyString() because there is no guarantee that the source string survives past compilation)
-    emitConstant(OBJ_VAL(copyString(parser.previous.start, parser.previous.length)));
+    uint8_t constant = makeConstant(OBJ_VAL(copyString(parser.previous.start, parser.previous.length)));
+    emitConstant(OP_CONSTANT, constant);
 }
 static void grouping(bool canAssign){
     expression();
@@ -504,6 +512,11 @@ static void or_(bool canAssign){
 static uint8_t identifierConstant(Token* name){
     return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 }
+static uint8_t syntheticConstant(const char* name){
+    Token synth = syntheticToken(name);
+    return identifierConstant(&synth);
+}
+
 static bool identifiersEqual(Token* a, Token* b){
     if (a->length != b->length) return false;
     return (memcmp(a->start, b->start, a->length) == 0);
@@ -598,7 +611,7 @@ static void defineVariable(uint8_t global){
         markInitialized();
         return;
     }
-    emitBytes(OP_DEFINE_GLOBAL, global);
+    emitConstant(OP_DEFINE_GLOBAL, global);
 }
 static uint8_t parseVariable(const char* errorMessage){
     // parses the variable name, then:
@@ -635,7 +648,7 @@ static void namedVariable(Token name, bool canAssign){
                 // evaluate expression and set variable to value on stack
                 advance();
                 expression();
-                emitBytes(setOp, (uint8_t)arg);
+                emitConstant(setOp, (uint8_t)arg);
                 return;
             }
             case (TOKEN_PLUS_EQUAL):   assignInstruction = OP_ADD; break;
@@ -652,12 +665,12 @@ static void namedVariable(Token name, bool canAssign){
             advance();
             expression();
             emitByte((uint8_t)assignInstruction);
-            emitBytes(setOp, arg);
+            emitConstant(setOp, arg);
             return;
         }
     }
     // Assumed get operation if no assignment succeeded
-    emitBytes(getOp, (uint8_t)arg);
+    emitConstant(getOp, arg);
 
     // if variable assignment on an invalid target, return to parsePrecedence and do not consume '='
     // error handling is done there.
@@ -698,7 +711,7 @@ static void interpolation(bool canAssign){
     uint8_t idxC = makeConstant(OBJ_VAL(copyString("concatenate", 11)));
 
     // get concatenate native function onto stack
-    emitBytes(OP_GET_STL, idxC);
+    emitConstant(OP_GET_STL, idxC);
 
     int argCount = 0;
     do {
@@ -706,7 +719,7 @@ static void interpolation(bool canAssign){
         string(canAssign);
 
         // get the Lox stringcast native function, evaluate the expression, and call it
-        emitBytes(OP_GET_STL, idxS);
+        emitConstant(OP_GET_STL, idxS);
         expression();
         emitBytes(OP_CALL, 1);
 
@@ -731,39 +744,38 @@ static void dot(bool canAssign){
 
     if (canAssign && match(TOKEN_EQUAL)){
         expression();
-        emitBytes(OP_SET_PROPERTY, name);
+        emitConstant(OP_SET_PROPERTY, name);
     } else if (match(TOKEN_LEFT_PAREN)){
         // Optimized invocations
         uint8_t argCount = argumentList();
-        emitBytes(OP_INVOKE, name);
+        emitConstant(OP_INVOKE, name);
         emitByte(argCount);
     } else {
-        emitBytes(OP_GET_PROPERTY, name);
+        emitConstant(OP_GET_PROPERTY, name);
     }
 }
 
 static void array(bool canAssign){
-    uint8_t idxArray = makeConstant(OBJ_VAL(copyString("Array", 5)));
-    emitBytes(OP_GET_STL, idxArray);
+    uint8_t idxArray = syntheticConstant("Array");
+    emitConstant(OP_GET_STL, idxArray);
     uint8_t argCount = 0;
     if (!check(TOKEN_RIGHT_BRACKET)){
         do {
             expression();
             if (argCount == 255){
                 // About to overflow to 256 arguments
-                error("Cannot have more than 255 arguments.");
+                error("Cannot have more than 255 elements in array literal.");
             }
             argCount++;
         } while (match(TOKEN_COMMA));
     }
-    consume(TOKEN_RIGHT_BRACKET, "Expect ']' after arguments.");
-    emitBytes(OP_CALL, argCount);
+    consume(TOKEN_RIGHT_BRACKET, "Expect ']' after array contents.");
+    emitConstant(OP_CALL, argCount);
 }
 
 static void subscript(bool canAssign){
-    uint8_t idxArray = makeConstant(OBJ_VAL(copyString("Array", 5)));
-    uint8_t idxGet = makeConstant(OBJ_VAL(copyString("get", 3)));
-    uint8_t idxSet = makeConstant(OBJ_VAL(copyString("set", 3)));
+    uint8_t idxGet = syntheticConstant("get");
+    uint8_t idxSet = syntheticConstant("set");
 
     // left bracket already consumed
     parsePrecedence(PREC_CONDITIONAL);
@@ -771,12 +783,10 @@ static void subscript(bool canAssign){
     if (canAssign && match(TOKEN_EQUAL)){
         // setter.
         expression();
-        emitBytes(OP_GET_STL, idxArray);
-        emitBytes(OP_SUPER_INVOKE, idxSet);
+        emitConstant(OP_INVOKE, idxSet);
         emitByte(2);
     } else {
-        emitBytes(OP_GET_STL, idxArray);
-        emitBytes(OP_SUPER_INVOKE, idxGet);
+        emitConstant(OP_INVOKE, idxGet);
         emitByte(1);
     }
 }
@@ -1049,14 +1059,14 @@ static void function(FunctionType type){
 
     if (function->upvalueCount > 0){
         // create closure object
-        emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+        emitConstant(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
         for (int i = 0; i < function->upvalueCount; i++){
             emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
             emitByte(compiler.upvalues[i].index);
         }
     } else {
         // create function object
-        emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+        emitConstant(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
     }
 }
 static void functionDeclaration(){
@@ -1097,7 +1107,7 @@ static void method(){
     if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0)
         type = TYPE_INITIALIZER;
     function(type);
-    emitBytes(OP_METHOD, nameConstant);
+    emitConstant(OP_METHOD, nameConstant);
 }
 static void classDeclaration(){
     consume(TOKEN_IDENTIFIER, "Expect class name.");
@@ -1105,21 +1115,44 @@ static void classDeclaration(){
     uint8_t nameConstant = identifierConstant(&parser.previous);
     declareVariable();
 
-    emitBytes(OP_CLASS, nameConstant);
+    emitConstant(OP_CLASS, nameConstant);
     defineVariable(nameConstant);
 
     ClassCompiler classCompiler;
     classCompiler.enclosing = currentClass;
-    classCompiler.hasSuperclass = false;
+    classCompiler.superclassType = SUPERCLASS_NONE;
     currentClass = &classCompiler;
 
     // if there is a superclass
     if (match(TOKEN_LESS)){
 
-        consume(TOKEN_IDENTIFIER, "Expect superclass name.");
-        variable(false);
-        if (identifiersEqual(&className, &parser.previous)){
-            error("A class cannot inherit from itself.");
+        if (match(TOKEN_LEFT_BRACKET)){
+            // multiple inheritance
+            uint8_t idxArray = syntheticConstant("Array");
+            emitConstant(OP_GET_STL, idxArray);
+            uint8_t argCount = 0;
+            do {
+                consume(TOKEN_IDENTIFIER, "Expect superclass name.");
+                variable(false);
+                if (argCount == 255){
+                    // About to overflow to 256 elements
+                    error("Too many elements in array literal.");
+                } else argCount++;
+                if (identifiersEqual(&className, &parser.previous))
+                    error("A class cannot inherit from itself.");
+            } while (match(TOKEN_COMMA));
+            consume(TOKEN_RIGHT_BRACKET, "Expect ']' after superclass array contents.");
+            emitBytes(OP_CALL, argCount);
+            classCompiler.superclassType = SUPERCLASS_MULTIPLE;
+        } 
+        else {
+            // single inheritance
+            consume(TOKEN_IDENTIFIER, "Expect superclass name.");
+            variable(false);
+            if (identifiersEqual(&className, &parser.previous)){
+                error("A class cannot inherit from itself.");
+            }
+            classCompiler.superclassType = SUPERCLASS_SINGLE;
         }
 
         // store superclass as 'super'
@@ -1130,7 +1163,6 @@ static void classDeclaration(){
         // load class back onto stack for inheritance
         namedVariable(className, false);
         emitByte(OP_INHERIT);
-        classCompiler.hasSuperclass = true;
     }
 
     // load class back onto stack for method loading
@@ -1146,7 +1178,7 @@ static void classDeclaration(){
     emitByte(OP_POP);
 
     // end scope to pop superclass, if any
-    if (classCompiler.hasSuperclass)
+    if (classCompiler.superclassType != SUPERCLASS_NONE)
         endScope();
 
     currentClass = currentClass->enclosing;
@@ -1162,22 +1194,40 @@ static void this_ (bool canAssign){
 static void super_ (bool canAssign){
     if (currentClass == NULL){
         error("Cannot use 'super' outside of a class.");
-    } else if (!currentClass->hasSuperclass){
+    } else if (currentClass->superclassType == SUPERCLASS_NONE){
         error("Cannot use 'super' in a class without a superclass.");
     }
-    consume(TOKEN_DOT, "Expect '.' after 'super'.");
+
+    int superjump = emitJump(OP_JUMP);
+    int superstart = currentChunk()->count;
+    namedVariable(syntheticToken("super"), false);
+    if (currentClass->superclassType == SUPERCLASS_MULTIPLE){
+        // multiple inheritance subscript
+        consume(TOKEN_LEFT_BRACKET, "Expect subscript after 'super' for multiple inheritance.");
+        expression();
+        consume(TOKEN_RIGHT_BRACKET, "Expect ']' after subscript.");
+        uint8_t idxGet = syntheticConstant("get");
+        emitConstant(OP_INVOKE, idxGet);
+        emitByte(1);
+    }
+    int returnJump = emitJump(OP_JUMP);
+    patchJump(superjump);
+
+    consume(TOKEN_DOT, "Expect '.' after super expression.");
     consume(TOKEN_IDENTIFIER, "Expect superclass method name.");
     uint8_t name = identifierConstant(&parser.previous);
 
     namedVariable(syntheticToken("this"), false);
     if (match(TOKEN_LEFT_PAREN)){
         uint8_t argCount = argumentList();
-        namedVariable(syntheticToken("super"), false);
-        emitBytes(OP_SUPER_INVOKE, name);
+        emitLoop(superstart);
+        patchJump(returnJump);
+        emitConstant(OP_SUPER_INVOKE, name);
         emitByte(argCount);
     } else {
-        namedVariable(syntheticToken("super"), false);
-        emitBytes(OP_GET_SUPER, name);
+        emitLoop(superstart);
+        patchJump(returnJump);
+        emitConstant(OP_GET_SUPER, name);
     }
 }
 
@@ -1338,7 +1388,7 @@ ObjFunction* compile(const char* source, bool evalExpr){
         // print only if not nil
 
         // duplicate and test for equality with OP_NIL
-        emitByte(OP_DUPLICATE);
+        emitBytes(OP_DUPLICATE, 0);
         emitByte(OP_NIL);
         emitByte(OP_EQUAL);
 
