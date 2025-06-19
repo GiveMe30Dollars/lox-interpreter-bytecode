@@ -8,7 +8,9 @@ This is wholly dreamt up by yours truly. It's probably not an *original* idea, b
 
 Object-oriented programming is cool. Everything being treated as an object... less so. The overhead of storing fields and methods usually craters performance, and has lead to such meme-worthy images such as:
 
-![python1](https://github.com/user-attachments/assets/1e4fd45d-6c5a-4271-a617-a4ecdb352fd1)
+<p align="center">
+<img src=https://github.com/user-attachments/assets/1e4fd45d-6c5a-4271-a617-a4ecdb352fd1 />
+</p>
 
 Usually we don't even *want* an object to store fields. An `int` shouldn't store anything other than its data, and in the case of dynamically-typed languages, its type.
 
