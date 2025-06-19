@@ -25,9 +25,24 @@ E().method();           // Expect: A method
 
 class F < [B, A] {
     method() {
-        //super.method();     // Expect: compile error
+        //super.method();     // Expect: runtime error
         super[0].method();
         super[1].method();
     }
 }
 F().method();                 // Expect: B method, A method
+
+var arr = [A, B, D];
+class G < arr {
+    method(){
+        super[0].method();
+    }
+}
+G().method();                 // Expect: A method
+
+
+// these should all be runtime errors
+// class H < H {}
+// class I < [I, A] {}
+// var str = "Not a class!";
+// class J < [str] {}

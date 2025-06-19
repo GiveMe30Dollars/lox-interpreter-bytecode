@@ -687,18 +687,25 @@ static InterpreterResult run(){
                 ObjClass* subclass = AS_CLASS(peek(0));
                 Value predecessor = peek(1);
                 if (IS_CLASS(predecessor)){
+                    if (valuesEqual(predecessor, peek(0))){
+                        runtimeError("A class cannot inherit from itself.");
+                        return INTERPRETER_RUNTIME_ERROR;
+                    }
                     tableAddAll(&AS_CLASS(predecessor)->methods, &subclass->methods);
                     tableAddAll(&AS_CLASS(predecessor)->statics, &subclass->statics);
                     // Pop subclass. Superclass remains as local variable.
                     pop();
                     break;
-                    
                 } else if (IS_ARRAY(predecessor)) {
                     ObjArray* superclassArray = AS_ARRAY(predecessor);
                     for (int i = superclassArray->data.count - 1; i >= 0; i--){
                         Value superclass = superclassArray->data.values[i];
                         if (!IS_CLASS(superclass)){
-                            runtimeError("Superclass element must be a class.");
+                            runtimeError("Element must be a class for multiple inheritance.");
+                            return INTERPRETER_RUNTIME_ERROR;
+                        }
+                        if (valuesEqual(superclass, peek(0))){
+                            runtimeError("A class cannot inherit from itself.");
                             return INTERPRETER_RUNTIME_ERROR;
                         }
                         tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
@@ -714,6 +721,10 @@ static InterpreterResult run(){
             }
             case OP_GET_SUPER: {
                 Value name = READ_CONSTANT();
+                if (!IS_CLASS(peek(0))){
+                    runtimeError("Super expression must evaluate to a class.");
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
                 ObjClass* superclass = AS_CLASS(pop());
                 if (!bindMethod(superclass, name)){
                     return INTERPRETER_RUNTIME_ERROR;
@@ -723,6 +734,10 @@ static InterpreterResult run(){
             case OP_SUPER_INVOKE: {
                 Value method = READ_CONSTANT();
                 int argCount = READ_BYTE();
+                if (!IS_CLASS(peek(0))){
+                    runtimeError("Super expression must evaluate to a class.");
+                    return INTERPRETER_RUNTIME_ERROR;
+                }
                 ObjClass* superclass = AS_CLASS(pop());
                 // store ip from register to call frame (return address)
                 frame->ip = ip;

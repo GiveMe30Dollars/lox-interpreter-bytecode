@@ -73,15 +73,9 @@ typedef struct Compiler {
 } Compiler;
 
 // All logic for handling this struct is in classDeclaration
-typedef enum {
-    SUPERCLASS_NONE,
-    SUPERCLASS_SINGLE,
-    SUPERCLASS_MULTIPLE
-} SuperclassType;
 typedef struct ClassCompiler {
     struct ClassCompiler* enclosing;
-    SuperclassType superclassType;
-    
+    bool hasSuperclass;
 } ClassCompiler;
 
 
@@ -1127,42 +1121,17 @@ static void classDeclaration(){
 
     ClassCompiler classCompiler;
     classCompiler.enclosing = currentClass;
-    classCompiler.superclassType = SUPERCLASS_NONE;
+    classCompiler.hasSuperclass = false;
     currentClass = &classCompiler;
 
     // if there is a superclass
     if (match(TOKEN_LESS)){
 
-        if (match(TOKEN_LEFT_BRACKET)){
-            // multiple inheritance
-            uint8_t idxArray = syntheticConstant("Array");
-            emitConstant(OP_GET_STL, idxArray);
-            uint8_t argCount = 0;
-            do {
-                consume(TOKEN_IDENTIFIER, "Expect superclass name.");
-                variable(false);
-                if (argCount == 255){
-                    // About to overflow to 256 elements
-                    error("Too many elements in array literal.");
-                } else argCount++;
-                if (identifiersEqual(&className, &parser.previous))
-                    error("A class cannot inherit from itself.");
-            } while (match(TOKEN_COMMA));
-            consume(TOKEN_RIGHT_BRACKET, "Expect ']' after superclass array literal.");
-            emitBytes(OP_CALL, argCount);
-            classCompiler.superclassType = SUPERCLASS_MULTIPLE;
-        } 
-        else {
-            // single inheritance
-            consume(TOKEN_IDENTIFIER, "Expect superclass name.");
-            variable(false);
-            if (identifiersEqual(&className, &parser.previous)){
-                error("A class cannot inherit from itself.");
-            }
-            classCompiler.superclassType = SUPERCLASS_SINGLE;
-        }
+        // Evaluate expression (which could be array of classes)
+        expression();
+        classCompiler.hasSuperclass = true;
 
-        // store superclass as 'super'
+        // store superclass expression as 'super'
         beginScope();
         addLocal(syntheticToken("super"));
         defineVariable(0);
@@ -1186,7 +1155,7 @@ static void classDeclaration(){
     emitByte(OP_POP);
 
     // end scope to pop superclass, if any
-    if (classCompiler.superclassType != SUPERCLASS_NONE)
+    if (classCompiler.hasSuperclass)
         endScope();
 
     currentClass = currentClass->enclosing;
@@ -1206,7 +1175,7 @@ static void this_ (bool canAssign){
 static void super_ (bool canAssign){
     if (currentClass == NULL){
         error("Cannot use 'super' outside of a class.");
-    } else if (currentClass->superclassType == SUPERCLASS_NONE){
+    } else if (!currentClass->hasSuperclass){
         error("Cannot use 'super' in a class without a superclass.");
     } else if (current->type == TYPE_STATIC_METHOD){
         error("Cannot use 'super' in a static method.");
@@ -1215,9 +1184,8 @@ static void super_ (bool canAssign){
     int superjump = emitJump(OP_JUMP);
     int superstart = currentChunk()->count;
     namedVariable(syntheticToken("super"), false);
-    if (currentClass->superclassType == SUPERCLASS_MULTIPLE){
+    if (match(TOKEN_LEFT_BRACKET)){
         // multiple inheritance subscript
-        consume(TOKEN_LEFT_BRACKET, "Expect subscript after 'super' for multiple inheritance.");
         expression();
         consume(TOKEN_RIGHT_BRACKET, "Expect ']' after subscript.");
         uint8_t idxGet = syntheticConstant("get");
