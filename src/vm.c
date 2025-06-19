@@ -300,6 +300,13 @@ static void defineMethod(Value name){
     tableSet(&klass->methods, name, method);
     pop();
 }
+static void defineStaticMethod(Value name){
+    Value method = peek(0);
+    ObjClass* klass = AS_CLASS(peek(1));
+    tableSet(&klass->methods, name, method);
+    tableSet(&klass->statics, name, method);
+    pop();
+}
 static bool bindMethod(ObjClass* klass, Value name){
     // returns true if method is found and bounded
     // resultant ObjBoundMethod is pushed to the stack
@@ -318,7 +325,7 @@ static bool bindMethod(ObjClass* klass, Value name){
 static bool invokeFromClass(ObjClass* klass, Value name, int argCount){
     Value method;
     if (!tableGet(&klass->methods, name, &method)){
-        runtimeError("Undefined property '%s'", AS_CSTRING(name));
+        runtimeError("Undefined property '%s'.", AS_CSTRING(name));
         return false;
     }
     return callValue(method, argCount);
@@ -344,7 +351,7 @@ static bool invoke(Value name, int argCount){
             return callValue(value, argCount);
         } else {
             // no static method found
-            runtimeError("No static method of name '%s'", AS_CSTRING(name));
+            runtimeError("No static method of name '%s'.", AS_CSTRING(name));
             return false;
         }
     } else {
@@ -658,11 +665,7 @@ static InterpreterResult run(){
                 break;
             }
             case OP_STATIC_METHOD: {
-                Value name = READ_CONSTANT();
-                Value method = peek(0);
-                ObjClass* klass = AS_CLASS(peek(1));
-                tableSet(&klass->statics, name, method);
-                pop();
+                defineStaticMethod(READ_CONSTANT());
                 break;
             }
             case OP_INVOKE: {

@@ -1205,6 +1205,8 @@ static void super_ (bool canAssign){
         error("Cannot use 'super' outside of a class.");
     } else if (currentClass->superclassType == SUPERCLASS_NONE){
         error("Cannot use 'super' in a class without a superclass.");
+    } else if (current->type == TYPE_STATIC_METHOD){
+        error("Cannot use 'super' in a static method.");
     }
 
     int superjump = emitJump(OP_JUMP);
