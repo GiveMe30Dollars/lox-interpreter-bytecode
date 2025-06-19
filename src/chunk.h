@@ -52,6 +52,7 @@ typedef enum {
     OP_STATIC_METHOD,
     OP_INVOKE,
     OP_INHERIT,
+    OP_INHERIT_MULTIPLE,
     OP_GET_SUPER,
     OP_SUPER_INVOKE
 } Opcode;

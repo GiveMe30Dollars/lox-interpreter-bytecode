@@ -32,16 +32,7 @@ class F < [B, A] {
 }
 F().method();                 // Expect: B method, A method
 
-var arr = [A, B, D];
-class G < arr {
-    method(){
-        super[0].method();
-    }
-}
-G().method();                 // Expect: A method
-
-
-// these should all be runtime errors
+// these should all be errors
 // class H < H {}
 // class I < [I, A] {}
 // var str = "Not a class!";
