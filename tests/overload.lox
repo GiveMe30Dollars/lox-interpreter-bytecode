@@ -1,0 +1,26 @@
+class Complex {
+    init(real, imag) {
+        this.real = real;
+        this.imag = imag;
+    }
+    toString() {
+        return "${this.real} + ${this.imag}i";
+    }
+    add(other) {
+        var real = this.real + other.real;
+        var imag = this.imag + other.real;
+        return Complex(real, imag);
+    }
+    multiply(other) {
+        var real = this.real * other.real - this.imag * other.imag;
+        var imag = this.real * other.imag + other.real * this.imag;
+        return Complex(real, imag);
+    }
+}
+
+var c1 = Complex(2, 3);
+var c2 = Complex(4, 1);
+print (c1 + c2).toString();
+print (c1 * c2).toString();
+
+print (c1 - c2).toString();

@@ -43,8 +43,11 @@ extern VM vm;
 
 void initVM();
 void freeVM();
+
 void push(Value value);
 Value pop();
+bool invoke(Value name, int argCount);
+bool callValue(Value callee, int argCount);
 
 typedef enum {
     INTERPRETER_OK,

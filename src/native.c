@@ -165,7 +165,7 @@ Value arrayGetNative(int argCount, Value* args){
     if (idx < 0) idx += array->data.count;
     return array->data.values[idx];
 }
-Value arraySetNative(int argCOunt, Value* args){
+Value arraySetNative(int argCount, Value* args){
     ObjArray* array = AS_ARRAY(args[-1]);
     if (!IS_NUMBER(args[0]) || floor(AS_NUMBER(args[0])) != AS_NUMBER(args[0])) {
         args[-1] = indexNotNumber();
@@ -180,7 +180,6 @@ Value arraySetNative(int argCOunt, Value* args){
     array->data.values[idx] = args[1];
     return args[1];
 }
-
 
 
 ImportInfo buildSTL(){

@@ -190,7 +190,7 @@ static bool throwValue(Value payload){
         }
     }
     if (newFrameCount == 0){
-        runtimeError("Uncaught exception: %s", AS_CSTRING(stringNative(1, &payload)) );
+        runtimeError("Uncaught Exception: %s", AS_CSTRING(stringNative(1, &payload)) );
         return false;
     }
 
@@ -206,7 +206,7 @@ static bool throwValue(Value payload){
 }
 static bool runtimeException(const char* format, ...){
     // create a printf-style message to an ObjString, pushed onto the stack
-    // then, thrown.
+    // then, throw it.
     va_list args;
 
     va_start(args, format);
@@ -266,7 +266,7 @@ static bool callFunction(ObjFunction* function, int argCount){
 static bool callClosure(ObjClosure* closure, int argCount){
     return call((Obj*)closure, closure->function, argCount);
 }
-static bool callValue(Value callee, int argCount){
+bool callValue(Value callee, int argCount){
     // returns false if call failed
     if (IS_OBJ(callee)){
         switch(OBJ_TYPE(callee)){
@@ -372,7 +372,7 @@ static bool invokeFromClass(ObjClass* klass, Value name, int argCount){
     }
     return callValue(method, argCount);
 }
-static bool invoke(Value name, int argCount){
+bool invoke(Value name, int argCount){
     Value receiver = peek(argCount);
     if (IS_INSTANCE(receiver)){
         ObjInstance* instance = AS_INSTANCE(receiver);
@@ -440,12 +440,17 @@ static InterpreterResult run(){
             } \
         } while (false)
     
-    #define BINARY_OP(valueType, op)\
+    #define BINARY_OP(valueType, op, alt)\
         do{ \
             if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))){ \
                 SAVE_IP(); \
-                runtimeError("Operands must be numbers."); \
-                return INTERPRETER_RUNTIME_ERROR; \
+                Value method = OBJ_VAL(copyString(alt, (int)strlen(alt))); \
+                if (invoke(method, 1)){ \
+                    LOAD_IP(); \
+                    break; \
+                } else { \
+                    if (vm.frameCount == 0) return INTERPRETER_RUNTIME_ERROR; \
+                }\
             } \
             double b = AS_NUMBER(pop()); \
             double a = AS_NUMBER(pop()); \
@@ -551,26 +556,13 @@ static InterpreterResult run(){
                 push(BOOL_VAL(valuesEqual(a, b)));
                 break;
             }
-            case OP_GREATER:  BINARY_OP(BOOL_VAL, >); break;
-            case OP_LESS:     BINARY_OP(BOOL_VAL, <); break;
+            case OP_GREATER:  BINARY_OP(BOOL_VAL, >, "less"); break;
+            case OP_LESS:     BINARY_OP(BOOL_VAL, <, "greater"); break;
 
-            case OP_ADD: {
-                if (IS_STRING(peek(0)) && IS_STRING(peek(1))){
-                    concatenateTwo();
-                } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
-                    double b = AS_NUMBER(pop());
-                    double a = AS_NUMBER(pop());
-                    push(NUMBER_VAL(a + b));
-                } else {
-                    SAVE_IP();
-                    runtimeError("Operands must be two numbers or two strings.");
-                    return INTERPRETER_RUNTIME_ERROR;
-                }
-                break;
-            }
-            case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
-            case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
-            case OP_DIVIDE:   BINARY_OP(NUMBER_VAL, /); break;
+            case OP_ADD:      BINARY_OP(NUMBER_VAL, +, "add"); break;
+            case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -, "subtract"); break;
+            case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *, "multiply"); break;
+            case OP_DIVIDE:   BINARY_OP(NUMBER_VAL, /, "divide"); break;
 
             case OP_NOT:
                 push(BOOL_VAL(isFalsey(pop())));
