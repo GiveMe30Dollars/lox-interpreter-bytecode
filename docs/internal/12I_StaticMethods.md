@@ -99,6 +99,6 @@ What should this code do? They're the same, right?
 
 As of now, no. E has no static method named `init`. In fact, E has no methods at all.
 
-Calling a function to create an instance is a two-step process. First, the VM creates an `ObjInstance`. Then, if a user-defined `init` method is found, it executes the contents of that, bounded to the fresh instance. Which should sound a lot like `instance.init()`, because it is. It's the behaviour you get if you invoke `init` on an existing instance.
+Calling a class to create an instance is a two-step process. First, the VM creates an `ObjInstance`. Then, if a user-defined `init` method is found, it executes the contents of that, bounded to the fresh instance. Which should sound a lot like `instance.init()`, because it is. It's the behaviour you get if you invoke `init` on an existing instance.
 
 As of writing, I'm not addressing this, but it makes intuitive sense to just overload the `init` method with separate static and non-static definitions, even if `init` isn't user-defined. `init` is basically a contextual keyword in this situation anyways.
