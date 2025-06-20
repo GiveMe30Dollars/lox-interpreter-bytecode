@@ -1281,7 +1281,7 @@ static void super_ (bool canAssign){
 }
 
 
-static void tryDeclaration(){
+static void tryStatement(){
     Compiler compiler;
     initCompiler(&compiler, TYPE_TRY_BLOCK);
     
@@ -1352,6 +1352,8 @@ static void statement(){
         breakStatement();
     } else if (match(TOKEN_CONTINUE)){
         continueStatement();
+    } else if (match(TOKEN_TRY)) {
+        tryStatement();
     } else if (match(TOKEN_THROW)){
         throwStatement();
     } else if (match(TOKEN_LEFT_BRACE)){
@@ -1368,8 +1370,6 @@ static void declaration(){
         classDeclaration();
     } else if (match(TOKEN_VAR)){
         varDeclaration();
-    } else if (match(TOKEN_TRY)) {
-        tryDeclaration();
     } else {
         statement();
     }
