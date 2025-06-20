@@ -640,7 +640,6 @@ static void namedVariable(Token name, bool canAssign){
         setOp = OP_SET_GLOBAL;
     }
 
-    bool assigned = false;
     if (canAssign){
         int assignInstruction = -1;
         switch(parser.current.type){
@@ -783,15 +782,46 @@ static void subscript(bool canAssign){
     // left bracket already consumed
     parsePrecedence(PREC_CONDITIONAL);
     consume(TOKEN_RIGHT_BRACKET, "Expect ']' after subscript.");
-    if (canAssign && match(TOKEN_EQUAL)){
-        // setter.
-        expression();
-        emitConstant(OP_INVOKE, idxSet);
-        emitByte(2);
-    } else {
-        emitConstant(OP_INVOKE, idxGet);
-        emitByte(1);
+
+    if (canAssign){
+        int assignInstruction = -1;
+        switch(parser.current.type){
+            case (TOKEN_EQUAL): {
+                // direct assignment
+                // evaluate expression and set variable to value on stack
+                advance();
+                expression();
+                emitConstant(OP_INVOKE, idxSet);
+                emitByte(2);
+                return;
+            }
+            case (TOKEN_PLUS_EQUAL):   assignInstruction = OP_ADD; break;
+            case (TOKEN_MINUS_EQUAL):  assignInstruction = OP_SUBTRACT; break;
+            case (TOKEN_STAR_EQUAL):   assignInstruction = OP_MULTIPLY; break;
+            case (TOKEN_SLASH_EQUAL):  assignInstruction = OP_DIVIDE; break;
+            default: ;    // Nothing.
+        }
+        if (assignInstruction != -1){
+            // compound assignment operation.
+            // get variable, advance past operator, evaluate expression to the right (PREC_ASSIGN)
+            // apply operation and set variable to value on stack
+            emitBytes(OP_DUPLICATE, 1);
+            emitBytes(OP_DUPLICATE, 1);
+            emitBytes(OP_INVOKE, idxGet);
+            emitByte(1);
+
+            advance();
+            expression();
+            emitByte((uint8_t)assignInstruction);
+
+            emitConstant(OP_INVOKE, idxSet);
+            emitByte(2);
+            return;
+        }
     }
+    // else, treat as getter
+    emitConstant(OP_INVOKE, idxGet);
+    emitByte(1);
 }
 
 
@@ -1414,6 +1444,18 @@ static ParseRule* getRule(TokenType type){
     return &rules[type];
 }
 
+static inline bool isAssignment(Token* token){
+    switch(token->type){
+        case TOKEN_EQUAL:
+        case TOKEN_PLUS_EQUAL:
+        case TOKEN_MINUS_EQUAL:
+        case TOKEN_STAR_EQUAL:
+        case TOKEN_SLASH_EQUAL:
+            return true;
+        default: return false;
+    }
+}
+
 // PRATT PARSER
 static void parsePrecedence(Precedence precedence){
 
@@ -1440,8 +1482,8 @@ static void parsePrecedence(Precedence precedence){
     }
 
     // error handling for invalid variable assignment
-    if (canAssign && match(TOKEN_EQUAL)){
-        error("Invalid assignment target.");
+    if (canAssign && isAssignment(&parser.current)){
+        errorAtCurrent("Invalid assignment target.");
     }
 }
 
