@@ -178,12 +178,58 @@ static void runtimeError(const char* format, ...){
     resetStack();
 }
 
+static bool throwValue(Value payload){
+    // returns true if stack recovery is successful
+    // returns false for uncaught exceptions
+    int newFrameCount = 0;
+    for (int i = vm.frameCount - 1; i >= 0; i--){
+        CallFrame* frame = &vm.frames[i];
+        if (getFrameFunction(frame)->fromTry){
+            newFrameCount = i;
+            break;
+        }
+    }
+    if (newFrameCount == 0){
+        runtimeError("Uncaught exception: %s", AS_CSTRING(stringNative(1, &payload)) );
+        return false;
+    }
+
+    // recover global variables
+    vm.stackTop = vm.frames[newFrameCount].slots;
+    vm.frameCount = newFrameCount;
+    push(payload);
+
+    // skip over OP_POP and OP_JUMP following OP_TRY_CALL
+    vm.frames[newFrameCount - 1].ip += 4;
+
+    return true;
+}
+static bool runtimeException(const char* format, ...){
+    // create a printf-style message to an ObjString, pushed onto the stack
+    // then, thrown.
+    va_list args;
+
+    va_start(args, format);
+    int bufferSize = vsnprintf(NULL, 0, format, args);
+    va_end(args);
+
+    char* buffer = ALLOCATE(char, bufferSize + 1);
+    va_start(args, format);
+    vsnprintf(buffer, bufferSize + 1, format, args);
+    buffer[bufferSize] = '\0';
+    va_end(args);
+
+    Value payload = OBJ_VAL(takeString(buffer, bufferSize));
+    // push onto stack to prevent garbage collector headaches
+    push(payload);
+    return throwValue(payload);
+}
+
 
 static bool callNative(ObjNative* native, int argCount){
     // arity fail
     if (native->arity >= 0 && native->arity != argCount){
-        runtimeError("Expected %d arguments but got %d.", native->arity, argCount);
-        return false;
+        return runtimeException("<fn %s> expected %d arguments but got %d.", native->name->chars, native->arity, argCount);
     }
     Value result = (native->function)(argCount, vm.stackTop - argCount);
     if ( !IS_EMPTY(result) ){
@@ -192,8 +238,7 @@ static bool callNative(ObjNative* native, int argCount){
         return true;
     } else {
         vm.stackTop -= argCount;
-        runtimeError("Uncaught exception: %s", AS_CSTRING(stringNative(1, (vm.stackTop - 1))) );
-        return false;
+        return throwValue(peek(0));
     }
 }
 static bool call(Obj* callee, ObjFunction* function, int argCount){
@@ -201,8 +246,7 @@ static bool call(Obj* callee, ObjFunction* function, int argCount){
 
     // fail if arity not the same
     if (function->arity != argCount){
-        runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
-        return false;
+        return runtimeException("<fn %s> expected %d arguments but got %d.", function->name->chars, function->arity, argCount);
     }
     // stack overflow fail
     if (vm.frameCount == FRAMES_MAX){
@@ -240,8 +284,7 @@ static bool callValue(Value callee, int argCount){
                 if (tableGet(&klass->methods, vm.initString, &initializer)){
                     return callValue(initializer, argCount);
                 } else if (argCount != 0) {
-                    runtimeError("Expected 0 arguments but got %d.", argCount);
-                    return false;
+                    return runtimeException("<class %s> initializer expected 0 arguments but got %d.", klass->name->chars, argCount);
                 }
                 return true;
             }
@@ -254,8 +297,7 @@ static bool callValue(Value callee, int argCount){
             default: ;    // Fallthrough to failure case
         }
     }
-    runtimeError("Can only call functions and classes.");
-    return false;
+    return runtimeException("Object is not callable.");
 }
 
 
@@ -314,8 +356,7 @@ static bool bindMethod(ObjClass* klass, Value name){
     // resultant ObjBoundMethod is pushed to the stack
     Value method;
     if (!tableGet(&klass->methods, name, &method)){
-        runtimeError("Undefined property '%s'.", AS_CSTRING(name));
-        return false;
+        return runtimeException("Undefined property '%s'.", AS_CSTRING(name));
     }
     ObjBoundMethod* bound = newBoundMethod(peek(0), AS_OBJ(method));
     pop();
@@ -327,8 +368,7 @@ static bool bindMethod(ObjClass* klass, Value name){
 static bool invokeFromClass(ObjClass* klass, Value name, int argCount){
     Value method;
     if (!tableGet(&klass->methods, name, &method)){
-        runtimeError("Undefined property '%s'.", AS_CSTRING(name));
-        return false;
+        return runtimeException("Undefined property '%s'.", AS_CSTRING(name));
     }
     return callValue(method, argCount);
 }
@@ -353,7 +393,7 @@ static bool invoke(Value name, int argCount){
             return callValue(value, argCount);
         } else {
             // no static method found
-            runtimeError("No static method of name '%s'.", AS_CSTRING(name));
+            runtimeException("No static method of name '%s'.", AS_CSTRING(name));
             return false;
         }
     } else {
@@ -363,7 +403,8 @@ static bool invoke(Value name, int argCount){
             // sentinel class found.
             return invokeFromClass(AS_CLASS(sentinel), name, argCount);
         }
-        runtimeError("Only instances have methods.");
+        // Nothing.
+        runtimeException("Object does not have methods.");
         return false;
     }
 }
@@ -378,15 +419,31 @@ static InterpreterResult run(){
     register uint8_t* ip = frame->ip;
 
     // Preprocessor macros for reading bytes
-    #define READ_BYTE() (*ip++)
-    #define READ_SHORT() (ip += 2, (uint16_t)ip[-2] << 8 | ip[-1])
+    #define READ_BYTE()     (*ip++)
+    #define READ_SHORT()    (ip += 2, (uint16_t)ip[-2] << 8 | ip[-1])
     #define READ_CONSTANT() (getFrameFunction(frame)->chunk.constants.values[READ_BYTE()])
-    #define READ_STRING() (AS_STRING(READ_CONSTANT()))
+    #define READ_STRING()   (AS_STRING(READ_CONSTANT()))
+
+    #define SAVE_IP()       (frame->ip = ip)
+    #define LOAD_IP() \
+        do { \
+            frame = &vm.frames[vm.frameCount - 1]; \
+            ip = frame->ip; \
+        } while (false)
+    #define THROW(runtimeCall) \
+        do { \
+            SAVE_IP(); \
+            if (runtimeCall == false) return INTERPRETER_RUNTIME_ERROR; \
+            else{ \
+                LOAD_IP(); \
+                break; \
+            } \
+        } while (false)
     
     #define BINARY_OP(valueType, op)\
         do{ \
             if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))){ \
-                frame->ip = ip; \
+                SAVE_IP(); \
                 runtimeError("Operands must be numbers."); \
                 return INTERPRETER_RUNTIME_ERROR; \
             } \
@@ -442,9 +499,7 @@ static InterpreterResult run(){
                 Value name = READ_CONSTANT();
                 Value value;
                 if (!tableGet(&vm.globals, name, &value) && !tableGet(&vm.stl, name, &value)){
-                    frame->ip = ip;
-                    runtimeError("Undefined variable '%s'", AS_CSTRING(name));
-                    return INTERPRETER_RUNTIME_ERROR;
+                    THROW(runtimeException("Undefined variable '%s'", AS_CSTRING(name)));
                 }
                 push(value);
                 break;
@@ -453,10 +508,8 @@ static InterpreterResult run(){
                 Value name = READ_CONSTANT();
                 if (tableSet(&vm.globals, name, peek(0))){
                     // isNewKey returned true. cannot set undeclared global variable.
-                    frame->ip = ip;
                     tableDelete(&vm.globals, name);
-                    runtimeError("Undefined variable '%s'.", AS_CSTRING(name));
-                    return INTERPRETER_RUNTIME_ERROR;
+                    THROW(runtimeException("Undefined variable '%s'.", AS_CSTRING(name)));
                 }
                 break;
             }
@@ -484,7 +537,7 @@ static InterpreterResult run(){
                 Value name = READ_CONSTANT();
                 Value value;
                 if (!tableGet(&vm.stl, name, &value)){
-                    frame->ip = ip;
+                    SAVE_IP();
                     runtimeError("Undefined STL identifier '%s'", AS_CSTRING(name));
                     return INTERPRETER_RUNTIME_ERROR;
                 }
@@ -509,7 +562,7 @@ static InterpreterResult run(){
                     double a = AS_NUMBER(pop());
                     push(NUMBER_VAL(a + b));
                 } else {
-                    frame->ip = ip;
+                    SAVE_IP();
                     runtimeError("Operands must be two numbers or two strings.");
                     return INTERPRETER_RUNTIME_ERROR;
                 }
@@ -524,7 +577,7 @@ static InterpreterResult run(){
                 break;
             case OP_NEGATE:
                 if (!IS_NUMBER(peek(0))){
-                    frame->ip = ip;
+                    SAVE_IP();
                     runtimeError("Operand must be a number.");
                     return INTERPRETER_RUNTIME_ERROR;
                 }
@@ -554,14 +607,12 @@ static InterpreterResult run(){
             
             case OP_CALL: {
                 int argCount = READ_BYTE();
-                // store ip from register to call frame (return address)
-                frame->ip = ip;
+                SAVE_IP();
                 if (!callValue(peek(argCount), argCount)){
                     return INTERPRETER_RUNTIME_ERROR;
                 }
                 // new call frame on stack, new register pointer
-                frame = &vm.frames[vm.frameCount - 1];
-                ip = frame->ip;
+                LOAD_IP();
                 break;
             }
             case OP_CLOSURE: {
@@ -597,8 +648,24 @@ static InterpreterResult run(){
                 vm.stackTop = frame->slots;
                 push(result);
                 // update frame and ip
-                frame = &vm.frames[vm.frameCount - 1];
-                ip = frame->ip;
+                LOAD_IP();
+                break;
+            }
+
+            case OP_TRY_CALL: {
+                SAVE_IP();
+                // No need to check for type safety
+                callValue(peek(0), 0);
+                LOAD_IP();
+                break;
+            }
+            case OP_THROW: {
+                // store ip from register to callframe (not that it matters for anything other than error reporting)
+                SAVE_IP();
+                if (throwValue(peek(0)) == false)
+                    return INTERPRETER_RUNTIME_ERROR;
+                // new call frame on stack, new register pointer
+                LOAD_IP();
                 break;
             }
 
@@ -609,6 +676,7 @@ static InterpreterResult run(){
             case OP_GET_PROPERTY: {
                 ObjClass* klass = NULL;
                 Value name = READ_CONSTANT();
+                SAVE_IP();
                 if (IS_INSTANCE(peek(0))){
                     // if property found, use that
                     // else look for class methods
@@ -630,16 +698,14 @@ static InterpreterResult run(){
                         push(value);
                         break;
                     } else {
-                        runtimeError("No static method of name '%s'.", AS_CSTRING(name));
-                        return INTERPRETER_RUNTIME_ERROR;
+                        THROW(runtimeException("No static method of name '%s'.", AS_CSTRING(name)));
                     }
                 } else {
                     // look for sentinel class methods
                     Value value = peek(0);
                     Value sentinel = typeNative(1, &value);
                     if (IS_EMPTY(sentinel)){
-                        runtimeError("This object does not have properties.");
-                        return INTERPRETER_RUNTIME_ERROR;
+                        THROW(runtimeException("This object does not have properties."));
                     } else {
                         klass = AS_CLASS(sentinel);
                     }
@@ -647,12 +713,13 @@ static InterpreterResult run(){
                 if (!bindMethod(klass, name)){
                     return INTERPRETER_RUNTIME_ERROR;
                 }
+                // update frame and ip
+                LOAD_IP();
                 break;
             }
             case OP_SET_PROPERTY: {
                 if (!IS_INSTANCE(peek(1))){
-                    runtimeError("Only instances have fields.");
-                    return INTERPRETER_RUNTIME_ERROR;
+                    THROW(runtimeException("Only instances have fields."));
                 }
                 ObjInstance* instance = AS_INSTANCE(peek(1));
                 Value name = READ_CONSTANT();
@@ -673,14 +740,12 @@ static InterpreterResult run(){
             case OP_INVOKE: {
                 Value method = READ_CONSTANT();
                 int argCount = READ_BYTE();
-                // store ip from register to call frame (return address)
-                frame->ip = ip;
+                SAVE_IP();
                 if (!invoke(method, argCount)){
                     return INTERPRETER_RUNTIME_ERROR;
                 }
                 // update frame and ip
-                frame = &vm.frames[vm.frameCount - 1];
-                ip = frame->ip;
+                LOAD_IP();
                 break;
             }
             case OP_INHERIT: {
@@ -693,8 +758,7 @@ static InterpreterResult run(){
                     pop();
                     break;
                 } else {
-                    runtimeError("Superclass must be a class or an array of classes.");
-                    return INTERPRETER_RUNTIME_ERROR;
+                    THROW(runtimeException("Superclass must be a class or an array of classes."));
                 }
             }
             case OP_INHERIT_MULTIPLE: {
@@ -703,12 +767,7 @@ static InterpreterResult run(){
                 for (int i = superclassArray->data.count - 1; i >= 0; i--){
                     Value superclass = superclassArray->data.values[i];
                     if (!IS_CLASS(superclass)){
-                        runtimeError("Element must be a class for multiple inheritance.");
-                        return INTERPRETER_RUNTIME_ERROR;
-                    }
-                    if (valuesEqual(superclass, peek(0))){
-                        runtimeError("A class cannot inherit from itself.");
-                        return INTERPRETER_RUNTIME_ERROR;
+                        THROW(runtimeException("Element must be a class for multiple inheritance."));
                     }
                     tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
                     tableAddAll(&AS_CLASS(superclass)->statics, &subclass->statics);
@@ -729,14 +788,11 @@ static InterpreterResult run(){
                 Value method = READ_CONSTANT();
                 int argCount = READ_BYTE();
                 ObjClass* superclass = AS_CLASS(pop());
-                // store ip from register to call frame (return address)
-                frame->ip = ip;
+                SAVE_IP();
                 if (!invokeFromClass(superclass, method, argCount)){
                     return INTERPRETER_RUNTIME_ERROR;
                 }
-                // update frame and ip
-                frame = &vm.frames[vm.frameCount - 1];
-                ip = frame->ip;
+                LOAD_IP();
                 break;
             }
         }    // end switch
@@ -746,6 +802,9 @@ static InterpreterResult run(){
     #undef READ_SHORT
     #undef READ_CONSTANT
     #undef READ_STRING
+    #undef SAVE_IP
+    #undef LOAD_IP
+    #undef THROW
     #undef BINARY_OP
 }
 InterpreterResult interpret(const char* source, bool evalExpr){

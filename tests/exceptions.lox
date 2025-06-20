@@ -1,0 +1,23 @@
+try {
+    clock("Arity fail!");
+} catch(e) {
+    print e;
+}
+
+fun error(){
+    throw "Not implemented!";
+}
+fun add(a, b){
+    if (type(a) != Number or type(b) != Number) error();
+    return a + b;
+}
+{
+    var outer = "outer";
+    try {
+        outer = add(3, 4);
+        outer = add("Uh Oh", nil);
+    } catch(e) {
+        print e;
+        throw e;
+    }
+}

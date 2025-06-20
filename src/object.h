@@ -117,6 +117,7 @@ typedef struct {
     Obj obj;
     int arity;
     int upvalueCount;
+    bool fromTry;
     Chunk chunk;
     ObjString* name;
 } ObjFunction;

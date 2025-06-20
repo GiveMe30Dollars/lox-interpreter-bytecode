@@ -195,6 +195,14 @@ static TokenType identifierType(){
         case 'w': return checkKeyword(1, 4, "hile", TOKEN_WHILE);
 
         // Multiple branches
+        case 'c':
+            if (scanner.curr - scanner.start > 1){
+                switch(scanner.start[1]){
+                    case 'a': return checkKeyword(2, 3, "tch", TOKEN_CATCH);
+                    case 'l': return checkKeyword(2, 3, "ass", TOKEN_CLASS);
+                    case 'o': return checkKeyword(2, 6,"ntinue", TOKEN_CONTINUE);
+                }
+            }
         case 'f':
             if (scanner.curr - scanner.start > 1){
                 switch(scanner.start[1]){
@@ -215,18 +223,25 @@ static TokenType identifierType(){
         case 't':
             if (scanner.curr - scanner.start > 1){
                 switch(scanner.start[1]){
-                    case 'h': return checkKeyword(2, 2, "is", TOKEN_THIS);
-                    case 'r': return checkKeyword(2, 2, "ue", TOKEN_TRUE);
+                    case 'h':
+                        if (scanner.curr - scanner.start > 2) {
+                            switch(scanner.start[2]){
+                                case 'i': return checkKeyword(3, 1, "s", TOKEN_THIS);
+                                case 'r': return checkKeyword(3, 2, "ow", TOKEN_THROW);
+                            }
+                        }
+                        break;
+                    case 'r': 
+                        if (scanner.curr - scanner.start > 2) {
+                            switch (scanner.start[2]){
+                                case 'u': return checkKeyword(3, 1, "e", TOKEN_TRUE);
+                                case 'y': return checkKeyword(3, 0, "", TOKEN_TRY);
+                            }
+                        }
+                        break;
                 }
             }
             break;
-        case 'c':
-            if (scanner.curr - scanner.start > 1){
-                switch(scanner.start[1]){
-                    case 'l': return checkKeyword(2, 3, "ass", TOKEN_CLASS);
-                    case 'o': return checkKeyword(2, 6,"ntinue", TOKEN_CONTINUE);
-                }
-            }
     }
     return TOKEN_IDENTIFIER;
 }

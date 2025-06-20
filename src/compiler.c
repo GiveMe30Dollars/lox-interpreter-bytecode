@@ -31,7 +31,8 @@ typedef enum {
     TYPE_LAMBDA,
     TYPE_METHOD,
     TYPE_INITIALIZER,
-    TYPE_STATIC_METHOD
+    TYPE_STATIC_METHOD,
+    TYPE_TRY_BLOCK
 } FunctionType;
 
 typedef struct {
@@ -313,7 +314,7 @@ static void initCompiler(Compiler* compiler, FunctionType type){
     // if this is a function or class, get name from parser
     // if this is a lambda, generate one
     if (type == TYPE_LAMBDA){
-        current->function->name = lambdaString();
+        current->function->name = copyString("lambda", 6);
     } else if (type != TYPE_SCRIPT){
         current->function->name = copyString(parser.previous.start, parser.previous.length);
     }
@@ -1250,6 +1251,59 @@ static void super_ (bool canAssign){
 }
 
 
+static void tryDeclaration(){
+    Compiler compiler;
+    initCompiler(&compiler, TYPE_TRY_BLOCK);
+    
+    consume(TOKEN_LEFT_BRACE, "Expect '{' after 'try'.");
+
+    // Everything goes into block scope
+    beginScope();
+    block();
+    ObjFunction* function = endCompiler();
+    function->fromTry = true;
+
+    if (function->upvalueCount > 0){
+        // create closure object
+        emitConstant(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+        for (int i = 0; i < function->upvalueCount; i++){
+            emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+            emitByte(compiler.upvalues[i].index);
+        }
+    } else {
+        // create function object
+        emitConstant(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+    }
+
+    // Function/closure object is on the stack. Try call
+    emitByte(OP_TRY_CALL);
+
+    // Emit pop and jump operand (will be skipped if exception thrown)
+    emitByte(OP_POP);
+    int catchJump = emitJump(OP_JUMP);
+
+    // Parse catch clause (no need to parse as function)
+    beginScope();
+    consume(TOKEN_CATCH, "Expect 'catch' after try clause.");
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'catch'.");
+    uint8_t localIdx = parseVariable("Expect variable name.");
+    defineVariable(localIdx);
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after identifier.");
+    consume(TOKEN_LEFT_BRACE, "Expect '{' before catch block.");
+    block();
+    endScope();
+
+    patchJump(catchJump);
+}
+static void throwStatement(){
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after throw statement.");
+    emitByte(OP_THROW);
+}
+
+
+
+
 static void expression(){
     parsePrecedence(PREC_ASSIGNMENT);
 }
@@ -1268,6 +1322,8 @@ static void statement(){
         breakStatement();
     } else if (match(TOKEN_CONTINUE)){
         continueStatement();
+    } else if (match(TOKEN_THROW)){
+        throwStatement();
     } else if (match(TOKEN_LEFT_BRACE)){
         beginScope();
         block();
@@ -1282,6 +1338,8 @@ static void declaration(){
         classDeclaration();
     } else if (match(TOKEN_VAR)){
         varDeclaration();
+    } else if (match(TOKEN_TRY)) {
+        tryDeclaration();
     } else {
         statement();
     }
