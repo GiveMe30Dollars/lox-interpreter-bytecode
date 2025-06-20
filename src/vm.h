@@ -28,7 +28,7 @@ typedef struct {
     ObjUpvalue* openUpvalues;
     Obj* objects;
 
-    uint32_t hash;
+    uint16_t counter;
     Value initString;
 
     // Garbage collector fields (we manage this ourselves)

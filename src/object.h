@@ -99,8 +99,7 @@ struct ObjString {
 };
 ObjString* copyString(const char* start, int length);
 ObjString* takeString(char* start, int length);
-
-ObjString* lambdaString();
+ObjString* lambdaString(const char* prefix);
 
 // ObjUpvalues are created when open upvalues are found, and store closed upvalues
 typedef struct ObjUpvalue {

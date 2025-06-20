@@ -95,7 +95,7 @@ void initVM(){
 
     vm.openUpvalues = NULL;
     vm.objects = NULL;
-    vm.hash = 0;
+    vm.counter = 0;
     vm.initString = OBJ_VAL(copyString("init", 4));
 
     stl();

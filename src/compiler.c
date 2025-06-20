@@ -314,7 +314,9 @@ static void initCompiler(Compiler* compiler, FunctionType type){
     // if this is a function or class, get name from parser
     // if this is a lambda, generate one
     if (type == TYPE_LAMBDA){
-        current->function->name = copyString("lambda", 6);
+        current->function->name = lambdaString("lambda_");
+    } else if (type == TYPE_TRY_BLOCK){
+        current->function->name = lambdaString("try_");
     } else if (type != TYPE_SCRIPT){
         current->function->name = copyString(parser.previous.start, parser.previous.length);
     }
