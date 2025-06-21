@@ -223,6 +223,11 @@ Value arraySetNative(int argCount, Value* args){
     array->data.values[idx] = args[1];
     return args[1];
 }
+Value arrayAppendNative(int argCount, Value* args){
+    ObjArray* array = AS_ARRAY(args[-1]);
+    writeValueArray(&array->data, args[0]);
+    return args[0];
+}
 Value arrayLengthNative(int argCount, Value* args){
     return NUMBER_VAL(AS_ARRAY(args[-1])->data.count);
 }
@@ -251,11 +256,12 @@ ImportInfo buildSTL(){
         IMPORT_SENTINEL("Function", 1),
             IMPORT_NATIVE("arity", functionArityNative, 0),
 
-        IMPORT_SENTINEL("Array", 5),
+        IMPORT_SENTINEL("Array", 6),
             IMPORT_STATIC("_raw", arrayRawNative, -1),
             IMPORT_STATIC("_allocate", arrayAllocateNative, 1),
             IMPORT_NATIVE("_get", arrayGetNative, 1),
             IMPORT_NATIVE("_set", arraySetNative, 2),
+            IMPORT_NATIVE("append", arrayAppendNative, 1),
             IMPORT_NATIVE("length", arrayLengthNative, 0)
     };
 

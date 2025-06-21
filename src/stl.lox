@@ -7,6 +7,14 @@ class Exception {
     }
 }
 
+class Slice {
+    init(start, stop, step){
+        this.start = start;
+        this.stop = stop;
+        this.step = step;
+    }
+}
+
 class Array {
     init(arg){
         if (arg == nil){
@@ -38,11 +46,11 @@ class Array {
         if (type(fn) != Function)
             throw Exception("Argument must be a function.");
         if (fn.arity() != 1)
-            throw Exception("Function must take in one argument.");
+            throw Exception("Function must take in exactly one argument.");
 
         var length = this.length();
         var result = Array._allocate(length);
-        for ( var i = 0; i < length; i += 1){
+        for (var i = 0; i < length; i += 1){
             result[i] = fn(this[i]);
         }
         return result;
@@ -50,11 +58,26 @@ class Array {
     copy(){
         return this.map(fun (n){n});
     }
+
+    filter(fn){
+        if (type(fn) != Function)
+            throw Exception("Argument must be a function.");
+        if (fn.arity() != 1)
+            throw Exception("Function must take in exactly one argument.");
+        
+        var result = Array(nil);
+        for (var i = 0; i < this.length(); i += 1){
+            if (fn(this[i]))
+                result.append(this[i]);
+        }
+        return result;
+    }
+
     reduce(fn){
         if (type(fn) != Function)
             throw Exception("Argument must be a function.");
         if (fn.arity() != 2)
-            throw Exception("Function must take in two arguments.");
+            throw Exception("Function must take in exactly two arguments.");
         if (this.length() < 1)
             throw Exception("Array must have a minimum length of 2.");
         

@@ -10,4 +10,5 @@
 
     print arr.map(fun(n){n * n});          // Expect: [0, 4, 16, 36, 64]
     print arr.reduce(fun(a, b){a + b});    // Expect: 20
+    print arr.filter(fun(n){n > 5});       // Expect: [6, 8]
 }
