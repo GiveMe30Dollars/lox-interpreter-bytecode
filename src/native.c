@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <math.h>
 
 #include "native.h"
@@ -65,30 +66,27 @@ Value hasMethodNative(int argCount, Value* args){
     return NIL_VAL();
 }
 
-Value stringNative(int argCount, Value* args){
-    // EMPTY_VAL can also signify that native function has passed execution to non-native function
-    Value value = args[0];
-    Value toStringName = OBJ_VAL(copyString("toString", 8));
-    args[1] = toStringName;
-    Value hasToString = hasMethodNative(2, args);
-    if (!IS_NIL(hasToString)){
-        memcpy(&args[-1], &args[0], sizeof(Value));
-        invoke(toStringName, 0);
-        return EMPTY_VAL();
-    }
 
+// STRING SENTINEL METHODS
+
+static inline Value indexNotNumber(){
+    return OBJ_VAL(copyString("Index must be a whole number.", 29));
+}
+static inline Value indexOutOfRange(){
+    return OBJ_VAL(copyString("Index out of range.", 19));
+}
+
+
+Value stringPrimitiveNative(int argCount, Value* args){
+    Value value = args[0];
     if (IS_EMPTY(value)){
         return OBJ_VAL(copyString("<empty>", 7));
     } else if (IS_NIL(value)){
         return OBJ_VAL(copyString("nil", 3));
     } else if (IS_BOOL(value)){
-        return OBJ_VAL( AS_BOOL(value) ? (Obj*)copyString("true", 4) : (Obj*)copyString("false", 5) );
+        return OBJ_VAL( AS_BOOL(value) ? copyString("true", 4) : copyString("false", 5) );
     } else if (IS_NUMBER(value)){
-        double number = AS_NUMBER(value);
-        int length = snprintf(NULL, 0, "%g", number);
-        char* buffer = ALLOCATE(char, length + 1);
-        snprintf(buffer, length + 1, "%g", number);
-        return OBJ_VAL(takeString(buffer, length));
+        return OBJ_VAL(printToString("%g", AS_NUMBER(value)));
     } else {
         switch(OBJ_TYPE(value)){
             case OBJ_STRING:
@@ -102,10 +100,25 @@ Value stringNative(int argCount, Value* args){
             case OBJ_CLASS:
                 return OBJ_VAL(AS_CLASS(value)->name);
             case OBJ_INSTANCE:
-                return OBJ_VAL(AS_INSTANCE(value)->klass->name);
+                return OBJ_VAL(printToString("<%s instance>", AS_INSTANCE(value)->klass->name->chars));
+            case OBJ_ARRAY:
+                return OBJ_VAL(copyString("<Array instance>", 16));
         }
     }
     return OBJ_VAL(copyString("", 0));
+}
+Value stringNative(int argCount, Value* args){
+    // EMPTY_VAL can also signify that native function has passed execution to non-native function
+    Value value = args[0];
+    Value toStringName = OBJ_VAL(copyString("toString", 8));
+    args[1] = toStringName;
+    Value hasToString = hasMethodNative(2, args);
+    if (!IS_NIL(hasToString)){
+        memcpy(&args[-1], &args[0], sizeof(Value));
+        invoke(toStringName, 0);
+        return EMPTY_VAL();
+    }
+    return stringPrimitiveNative(argCount, args);
 }
 Value concatenateNative(int argCount, Value* args){
     // Concatenates any number of strings, up to UINT8_MAX
@@ -149,32 +162,22 @@ Value stringGetNative(int argCount, Value* args){
         return EMPTY_VAL();
     }
     if (idx < 0) idx += str->length;
-    return OBJ_VAL(copyString(str->chars[idx], 1));
+    return OBJ_VAL(copyString(&str->chars[idx], 1));
 }
 Value stringLengthNative(int argCount, Value* args){
     return NUMBER_VAL(AS_STRING(args[-1])->length);
 }
 
+// FUNCTION SENTINEL METHODS
+
+Value functionArityNative(int argCount, Value* args){
+    return NUMBER_VAL(AS_FUNCTION(args[-1])->arity);
+}
 
 
-static inline Value indexNotNumber(){
-    return OBJ_VAL(copyString("Index must be a whole number.", 29));
-}
-static inline Value indexOutOfRange(){
-    return OBJ_VAL(copyString("Index out of range.", 19));
-}
-Value arrayInitNative(int argCount, Value* args){
-    if (argCount == 0){
-        return OBJ_VAL(newArray());
-    }
-    if (argCount > 1){
-        args[-1] = OBJ_VAL(copyString("'Array' constructor takes at most 1 argument.", 45));
-        return EMPTY_VAL();
-    }
-    if (!IS_NUMBER(args[0]) || floor(AS_NUMBER(args[0])) != AS_NUMBER(args[0])) {
-        args[-1] = indexNotNumber();
-        return EMPTY_VAL();
-    }
+// ARRAY SENTINEL METHODS
+
+Value arrayAllocateNative(int argCount, Value* args){
     int num = (int)AS_NUMBER(args[0]);
     ObjArray* array = newArray();
     args[-1] = OBJ_VAL(array);
@@ -221,10 +224,11 @@ Value arraySetNative(int argCount, Value* args){
     return args[1];
 }
 Value arrayLengthNative(int argCount, Value* args){
-    ObjArray* array = AS_ARRAY(args[-1]);
-    return NUMBER_VAL(array->data.count);
+    return NUMBER_VAL(AS_ARRAY(args[-1])->data.count);
 }
 
+
+// STL BUILD AND FREE
 
 ImportInfo buildSTL(){
 
@@ -236,7 +240,7 @@ ImportInfo buildSTL(){
 
         IMPORT_SENTINEL("Boolean", 0),
         IMPORT_SENTINEL("Number", 0),
-        
+
         IMPORT_SENTINEL("String", 5),
             IMPORT_STATIC("init", stringNative, 1),
             IMPORT_STATIC("concatenate", concatenateNative, -1),
@@ -244,9 +248,12 @@ ImportInfo buildSTL(){
             IMPORT_NATIVE("get", stringGetNative, 1),
             IMPORT_NATIVE("length", stringLengthNative, 0),
 
-        IMPORT_SENTINEL("Function", 0),
-        IMPORT_SENTINEL("Array", 4),
+        IMPORT_SENTINEL("Function", 1),
+            IMPORT_NATIVE("arity", functionArityNative, 0),
+
+        IMPORT_SENTINEL("Array", 5),
             IMPORT_STATIC("_raw", arrayRawNative, -1),
+            IMPORT_STATIC("_allocate", arrayAllocateNative, 1),
             IMPORT_NATIVE("_get", arrayGetNative, 1),
             IMPORT_NATIVE("_set", arraySetNative, 2),
             IMPORT_NATIVE("length", arrayLengthNative, 0)

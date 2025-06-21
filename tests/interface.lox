@@ -3,7 +3,11 @@
     print arr[2];
     arr[4] = "88";
 
-    print arr.toString();
-    print String(arr);
+    // print arr.toString();
+    // print String(arr);
     print arr;
+    arr[4] = 8;
+
+    print arr.map(fun(n){n * n});          // Expect: [0, 4, 16, 36, 64]
+    print arr.reduce(fun(a, b){a + b});    // Expect: 20
 }

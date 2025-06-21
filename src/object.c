@@ -76,11 +76,6 @@ ObjString* takeString(char* start, int length){
 }
 
 ObjString* lambdaString(const char* prefix){
-    // we keep a 32-bit hash in vm.hash
-    // when we generate a lambda string, regenerate another hash based on that hash
-    // then return that as an ObjString*
-    // Display name is "[XXXXXXXX]" of length 10 (+1 for \0);
-
     const int length = (int)strlen(prefix) + 6;
     char* buffer = ALLOCATE(char, length + 1);
     snprintf(buffer, length + 1, "%s0x%04x", prefix, vm.counter++);
@@ -88,7 +83,18 @@ ObjString* lambdaString(const char* prefix){
 
     return takeString(buffer, length);
 }
-
+ObjString* printToString(const char* format, ...){
+    va_list args;
+    va_start(args, format);
+    int length = vsnprintf(NULL, 0, format, args);
+    va_end(args);
+    char* buffer = ALLOCATE(char, length + 1);
+    va_start(args, format);
+    vsnprintf(buffer, length + 1, format, args);
+    va_end(args);
+    buffer[length] = '\0';
+    return takeString(buffer, length);
+}
 
 // OBJUPVALUE METHODS
 ObjUpvalue* newUpvalue(Value* location){

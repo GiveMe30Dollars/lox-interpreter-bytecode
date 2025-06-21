@@ -12,6 +12,10 @@ class Array {
         if (arg == nil){
             this = Array._raw();
         }
+        else if (type(arg) == Number){
+            this = Array._allocate(arg);
+        }
+        else throw Exception("Not implemented!");
     }
     get(idx){
         return this._get(idx);
@@ -33,16 +37,31 @@ class Array {
     map(fn){
         if (type(fn) != Function)
             throw Exception("Argument must be a function.");
+        if (fn.arity() != 1)
+            throw Exception("Function must take in one argument.");
+
         var length = this.length();
-        var result = Array(length);
-        var i = 0;
-        while (i < length){
+        var result = Array._allocate(length);
+        for ( var i = 0; i < length; i += 1){
             result[i] = fn(this[i]);
-            i += 1;
         }
         return result;
     }
+    copy(){
+        return this.map(fun (n){n});
+    }
     reduce(fn){
+        if (type(fn) != Function)
+            throw Exception("Argument must be a function.");
+        if (fn.arity() != 2)
+            throw Exception("Function must take in two arguments.");
+        if (this.length() < 1)
+            throw Exception("Array must have a minimum length of 2.");
         
+        var temp = this[0];
+        for (var i = 1; i < this.length(); i += 1){
+            temp = fn(temp, this[i]);
+        }
+        return temp;
     }
 }

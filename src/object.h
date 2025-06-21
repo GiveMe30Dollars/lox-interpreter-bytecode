@@ -1,6 +1,8 @@
 #ifndef clox_object_h
 #define clox_object_h
 
+#include <stdarg.h>
+
 #include "common.h"
 #include "chunk.h"
 #include "hashtable.h"
@@ -100,6 +102,7 @@ struct ObjString {
 ObjString* copyString(const char* start, int length);
 ObjString* takeString(char* start, int length);
 ObjString* lambdaString(const char* prefix);
+ObjString* printToString(const char* format, ...);
 
 // ObjUpvalues are created when open upvalues are found, and store closed upvalues
 typedef struct ObjUpvalue {

@@ -70,7 +70,7 @@ static void runtimeError(const char* format, ...){
     resetStack();
 }
 
-static bool throwValue(Value payload){
+static bool throwValue(Value* payload){
     // returns true if stack recovery is successful
     // returns false for uncaught exceptions
     int newFrameCount = 0;
@@ -82,14 +82,14 @@ static bool throwValue(Value payload){
         }
     }
     if (newFrameCount == 0){
-        runtimeError("Uncaught Exception: %s", AS_CSTRING(stringNative(1, &payload)) );
+        runtimeError("Uncaught Exception: %s", AS_CSTRING(stringPrimitiveNative(1, payload)) );
         return false;
     }
 
     // recover global variables
     vm.stackTop = vm.frames[newFrameCount].slots;
     vm.frameCount = newFrameCount;
-    push(payload);
+    push(*payload);
 
     // skip over OP_POP and OP_JUMP following OP_TRY_CALL
     vm.frames[newFrameCount - 1].ip += 4;
@@ -114,7 +114,7 @@ static bool runtimeException(const char* format, ...){
     Value payload = OBJ_VAL(takeString(buffer, bufferSize));
     // push onto stack to prevent garbage collector headaches
     push(payload);
-    return throwValue(payload);
+    return throwValue(vm.stackTop - 1);
 }
 
 // forward declaration of callFunction for use in running stl.lox
@@ -248,7 +248,7 @@ static bool callNative(ObjNative* native, int argCount){
             return true;
         }
         vm.stackTop -= argCount;
-        return throwValue(peek(0));
+        return throwValue(vm.stackTop - 1);
     }
 }
 static bool call(Obj* callee, ObjFunction* function, int argCount){
@@ -677,7 +677,7 @@ static InterpreterResult run(bool isSTL){
             case OP_THROW: {
                 // store ip from register to callframe (not that it matters for anything other than error reporting)
                 SAVE_IP();
-                if (throwValue(peek(0)) == false)
+                if (throwValue(vm.stackTop - 1) == false)
                     return INTERPRETER_RUNTIME_ERROR;
                 // new call frame on stack, new register pointer
                 LOAD_IP();
