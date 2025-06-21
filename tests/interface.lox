@@ -1,0 +1,9 @@
+{
+    var arr = [0,2,4,6,8];
+    print arr[2];
+    arr[4] = "88";
+
+    print arr.toString();
+    print String(arr);
+    print arr;
+}

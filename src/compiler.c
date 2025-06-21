@@ -709,11 +709,11 @@ static void interpolation(bool canAssign){
     // String interpolation handling
 
     // Get the index to "string" and "concatenate" constant (required to call native function)
-    uint8_t idxS = makeConstant(OBJ_VAL(copyString("string", 6)));
-    uint8_t idxC = makeConstant(OBJ_VAL(copyString("concatenate", 11)));
+    uint8_t idxS = syntheticConstant("String");
+    uint8_t idxC = syntheticConstant("concatenate");
 
-    // get concatenate native function onto stack
-    emitConstant(OP_GET_STL, idxC);
+    // prepare for concatenate native method invocation
+    emitConstant(OP_GET_STL, idxS);
 
     int argCount = 0;
     do {
@@ -737,7 +737,8 @@ static void interpolation(bool canAssign){
     string(canAssign);
     argCount++;
 
-    emitBytes(OP_CALL, (uint8_t)argCount);
+    emitBytes(OP_INVOKE, idxC);
+    emitByte(argCount);
 }
 
 static void dot(bool canAssign){
@@ -759,7 +760,7 @@ static void dot(bool canAssign){
 
 static void array(bool canAssign){
     uint8_t idxArray = syntheticConstant("Array");
-    uint8_t idxRaw = syntheticConstant("@raw");
+    uint8_t idxRaw = syntheticConstant("_raw");
     emitConstant(OP_GET_STL, idxArray);
     uint8_t argCount = 0;
     if (!check(TOKEN_RIGHT_BRACKET)){
@@ -1238,8 +1239,8 @@ static void this_ (bool canAssign){
         error("Cannot use 'this' in a static method.");
         return;
     }
-    // treat as local variable
-    variable(false);
+    // treat as (assignable) local variable
+    variable(true);
 }
 static void super_ (bool canAssign){
     if (currentClass == NULL){

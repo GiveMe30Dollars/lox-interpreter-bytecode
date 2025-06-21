@@ -1,0 +1,48 @@
+class Exception {
+    init(payload){
+        this.payload = payload;
+    }
+    toString(){
+        return String(this.payload);
+    }
+}
+
+class Array {
+    init(arg){
+        if (arg == nil){
+            this = Array._raw();
+        }
+    }
+    get(idx){
+        return this._get(idx);
+    }
+    set(idx, value){
+        this._set(idx, value);
+        return value;
+    }
+
+    toString(){
+        var str = "[";
+        for (var i = 0; i < this.length(); i += 1){
+            str = "${str}${(i == 0) ? "" : ", "}${this[i]}";
+        }
+        str += "]";
+        return str;
+    }
+
+    map(fn){
+        if (type(fn) != Function)
+            throw Exception("Argument must be a function.");
+        var length = this.length();
+        var result = Array(length);
+        var i = 0;
+        while (i < length){
+            result[i] = fn(this[i]);
+            i += 1;
+        }
+        return result;
+    }
+    reduce(fn){
+        
+    }
+}

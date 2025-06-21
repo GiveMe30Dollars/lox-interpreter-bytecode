@@ -48,15 +48,16 @@ void freeSTL(ImportInfo library);
 // NATIVE FUNCTIONS AND METHODS
 
 Value clockNative(int argCount, Value* args);
-Value stringNative(int argCount, Value* args);
-Value concatenateNative(int argCount, Value* args);
 
 Value typeNative(int argCount, Value* args);
+Value hasMethodNative(int argCount, Value* args);
 
-Value notImplementedNative(int argCount, Value* args);
+Value stringNative(int argCount, Value* args);
+Value concatenateNative(int argCount, Value* args);
 
 Value arrayInitNative(int argCount, Value* args);
 Value arrayGetNative(int argCount, Value* args);
 Value arraySetNative(int argCOunt, Value* args);
+Value arrayLengthNative(int argCount, Value* args);
 
 #endif

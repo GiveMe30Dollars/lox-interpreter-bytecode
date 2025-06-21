@@ -1,7 +1,7 @@
 // This tests the initialization, getting and setting of arrays,
 // through both method calls and subscript notation
 
-var arr1 = Array();
+var arr1 = Array(nil);
 var arr2 = Array(5);
 
 {

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
@@ -7,6 +8,7 @@
 #include "common.h"
 #include "compiler.h"
 #include "debug.h"
+#include "io.h"
 #include "memory.h"
 #include "native.h"
 #include "object.h"
@@ -34,99 +36,6 @@ static Value peek(int distance){
     return vm.stackTop[-1 - distance];
 }
 
-
-// native function, method and static method parsing
-static int defineNative(ImportNative native, bool isStaticMethod, const int i){
-    // push onto stack to ensure they survive if GC triggered by reallocation of hash table
-    // also handles nonstatic and static methods
-    push(OBJ_VAL( copyString(native.name, (int)strlen(native.name)) ));
-    push(OBJ_VAL( newNative(native.function, native.arity, AS_STRING(peek(0))) ));
-    HashTable* target = vm.stackTop - vm.stack > 2 ? &AS_CLASS(peek(2))->methods : &vm.stl;
-    tableSet(target, peek(1), peek(0));
-    if (isStaticMethod) 
-        tableSet(&AS_CLASS(peek(2))->statics, peek(1), peek(0));
-    pop();
-    pop();
-    return i + 1;
-}
-static int defineSentinel(ImportSentinel sentinel, ImportInfo imports, const int i){
-    // push onto stack to ensure they survive GC
-    // also sets native static and nonstatic methods
-    push(OBJ_VAL( copyString(sentinel.name, (int)strlen(sentinel.name)) ));
-    push(OBJ_VAL( newClass(AS_STRING(peek(0))) ));
-    for (int j = 1; j <= sentinel.numOfMethods; j++){
-        ImportStruct method = imports.start[i + j];
-        defineNative(method.as.native, (method.header == IMPORT_STATIC), j);
-    }
-    tableSet(&vm.stl, peek(1), peek(0));
-    pop();
-    pop();
-    return i + sentinel.numOfMethods + 1;
-}
-
-void stl(){
-    ImportInfo imports = buildSTL();
-    for (int i = 0; i < imports.count; /* manual increment */ ){
-        ImportStruct imp = imports.start[i];
-        if (imp.header == IMPORT_NATIVE){
-            i = defineNative(imp.as.native, false, i);
-        } else {
-            i = defineSentinel(imp.as.sentinel, imports, i);
-        }
-    }
-    freeSTL(imports);
-}
-
-// INITIALIZE/FREE VM
-void initVM(){
-    resetStack();
-    vm.initString = NIL_VAL();
-
-    // do this BEFORE anything, really
-    vm.bytesAllocated = 0;
-    vm.nextGC = 1024 * 1024;
-    vm.grayCount = 0;
-    vm.grayCapacity = 0;
-    vm.grayStack = NULL;
-
-    initTable(&vm.stl);
-    initTable(&vm.globals);
-    initTable(&vm.strings);
-
-    vm.openUpvalues = NULL;
-    vm.objects = NULL;
-    vm.counter = 0;
-    vm.initString = OBJ_VAL(copyString("init", 4));
-
-    stl();
-}
-void freeVM(){
-    freeTable(&vm.globals);
-    freeTable(&vm.strings);
-    vm.initString = NIL_VAL();
-    freeObjects();
-}
-
-// RUNTIME HELPER FUNCTIONS
-
-static bool isFalsey(Value value){
-    #ifdef IS_FALSEY_EXTENDED
-    // returns true for: false, nil, <empty>, 0, ""
-    // (an enduser should not have access to <empty>)
-    switch (value.type){
-        case VAL_NIL:    return true;
-        case VAL_BOOL:   return !AS_BOOL(value);
-        case VAL_EMPTY:  return true;
-        case VAL_NUMBER: return AS_NUMBER(value) == 0;
-        case VAL_OBJ:    return AS_STRING(value)->length == 0;
-        default:         return true;    // Unreachable.
-    }
-    #else
-    // returns true for false and nil
-    return (IS_NIL(value) || (IS_BOOL(value) && AS_BOOL(value) == false));
-    #endif
-}
-
 static inline ObjFunction* getFrameFunction(CallFrame* frame){
     if (objType(frame->function) == OBJ_FUNCTION){
         return (ObjFunction*)frame->function;
@@ -135,23 +44,6 @@ static inline ObjFunction* getFrameFunction(CallFrame* frame){
     }
 }
 
-
-static void concatenateTwo(){
-    // concatenates two strings on the stack
-    ObjString* b = AS_STRING(peek(0));
-    ObjString* a = AS_STRING(peek(1));
-
-    int length = a->length + b->length;
-    char* chars = ALLOCATE(char, length + 1);
-    memcpy(chars, a->chars, a->length);
-    memcpy(chars + a->length, b->chars, b->length);
-    chars[length] = '\0';
-
-    ObjString* result = takeString(chars, length);
-    pop();
-    pop();
-    push(OBJ_VAL(result));
-}
 
 static void runtimeError(const char* format, ...){
     // printf-style message to stderr
@@ -225,18 +117,136 @@ static bool runtimeException(const char* format, ...){
     return throwValue(payload);
 }
 
+// forward declaration of callFunction for use in running stl.lox
+static bool callFunction(ObjFunction* function, int  argCount);
+static InterpreterResult run(bool isSTL);
+
+// native function, method and static method parsing
+static int defineNative(ImportNative native, bool isStaticMethod, const int i){
+    // push onto stack to ensure they survive if GC triggered by reallocation of hash table
+    // also handles nonstatic and static methods
+    push(OBJ_VAL( copyString(native.name, (int)strlen(native.name)) ));
+    push(OBJ_VAL( newNative(native.function, native.arity, AS_STRING(peek(0))) ));
+    HashTable* target = vm.stackTop - vm.stack > 2 ? &AS_CLASS(peek(2))->methods : &vm.stl;
+    tableSet(target, peek(1), peek(0));
+    if (isStaticMethod) 
+        tableSet(&AS_CLASS(peek(2))->statics, peek(1), peek(0));
+    pop();
+    pop();
+    return i + 1;
+}
+static int defineSentinel(ImportSentinel sentinel, ImportInfo imports, const int i){
+    // push onto stack to ensure they survive GC
+    // also sets native static and nonstatic methods
+    push(OBJ_VAL( copyString(sentinel.name, (int)strlen(sentinel.name)) ));
+    push(OBJ_VAL( newClass(AS_STRING(peek(0))) ));
+    for (int j = 1; j <= sentinel.numOfMethods; j++){
+        ImportStruct method = imports.start[i + j];
+        defineNative(method.as.native, (method.header == IMPORT_STATIC), j);
+    }
+    tableSet(&vm.stl, peek(1), peek(0));
+    pop();
+    pop();
+    return i + sentinel.numOfMethods + 1;
+}
+
+void stl(){
+    ImportInfo imports = buildSTL();
+    for (int i = 0; i < imports.count; /* manual increment */ ){
+        ImportStruct imp = imports.start[i];
+        if (imp.header == IMPORT_NATIVE){
+            i = defineNative(imp.as.native, false, i);
+        } else {
+            i = defineSentinel(imp.as.sentinel, imports, i);
+        }
+    }
+    freeSTL(imports);
+
+    ObjFunction* stl = compile(readFile("src/stl.lox"), false);
+    if (stl == NULL){
+        fprintf(stderr, "STL failed to compile!");
+        exit(74);
+    }
+    push(OBJ_VAL(stl));
+    callFunction(stl, 0);
+    if (run(true) != INTERPRETER_OK){
+        fprintf(stderr, "STL failed to run!");
+        exit(74);
+    }
+    else return;
+}
+
+// INITIALIZE/FREE VM
+void initVM(){
+    resetStack();
+    vm.initString = NIL_VAL();
+
+    // do this BEFORE anything, really
+    vm.bytesAllocated = 0;
+    vm.nextGC = 1024 * 1024;
+    vm.grayCount = 0;
+    vm.grayCapacity = 0;
+    vm.grayStack = NULL;
+
+    initTable(&vm.stl);
+    initTable(&vm.globals);
+    initTable(&vm.strings);
+
+    vm.openUpvalues = NULL;
+    vm.objects = NULL;
+    vm.counter = 0;
+    vm.initString = OBJ_VAL(copyString("init", 4));
+
+    stl();
+}
+void freeVM(){
+    freeTable(&vm.globals);
+    freeTable(&vm.strings);
+    vm.initString = NIL_VAL();
+    freeObjects();
+}
+
+// RUNTIME HELPER FUNCTIONS
+
+static bool isFalsey(Value value){
+    // returns true for false and nil
+    return (IS_NIL(value) || (IS_BOOL(value) && AS_BOOL(value) == false));
+}
+
+static void concatenateTwo(){
+    // concatenates two strings on the stack
+    ObjString* b = AS_STRING(peek(0));
+    ObjString* a = AS_STRING(peek(1));
+
+    int length = a->length + b->length;
+    char* chars = ALLOCATE(char, length + 1);
+    memcpy(chars, a->chars, a->length);
+    memcpy(chars + a->length, b->chars, b->length);
+    chars[length] = '\0';
+
+    ObjString* result = takeString(chars, length);
+    pop();
+    pop();
+    push(OBJ_VAL(result));
+}
+
 
 static bool callNative(ObjNative* native, int argCount){
     // arity fail
     if (native->arity >= 0 && native->arity != argCount){
         return runtimeException("<fn %s> expected %d arguments but got %d.", native->name->chars, native->arity, argCount);
     }
+    int callframeCount = vm.frameCount;
     Value result = (native->function)(argCount, vm.stackTop - argCount);
     if ( !IS_EMPTY(result) ){
         vm.stackTop -= (argCount + 1);
         push(result);
         return true;
     } else {
+        if (vm.frameCount != callframeCount){
+            // Native function passed execution to non-native function
+            return true;
+        }
         vm.stackTop -= argCount;
         return throwValue(peek(0));
     }
@@ -410,7 +420,7 @@ bool invoke(Value name, int argCount){
 }
 
 
-static InterpreterResult run(){
+static InterpreterResult run(bool isSTL){
 
     // Get current call frame
     CallFrame* frame = &vm.frames[vm.frameCount - 1];
@@ -496,7 +506,8 @@ static InterpreterResult run(){
 
             case OP_DEFINE_GLOBAL: {
                 Value name = READ_CONSTANT();
-                tableSet(&vm.globals, name, peek(0));
+                HashTable* table = isSTL ? &vm.stl : &vm.globals;
+                tableSet(table, name, peek(0));
                 pop();
                 break;
             }
@@ -511,9 +522,10 @@ static InterpreterResult run(){
             }
             case OP_SET_GLOBAL: {
                 Value name = READ_CONSTANT();
-                if (tableSet(&vm.globals, name, peek(0))){
+                HashTable* table = isSTL ? &vm.stl : &vm.globals;
+                if (tableSet(table, name, peek(0))){
                     // isNewKey returned true. cannot set undeclared global variable.
-                    tableDelete(&vm.globals, name);
+                    tableDelete(table, name);
                     THROW(runtimeException("Undefined variable '%s'.", AS_CSTRING(name)));
                 }
                 break;
@@ -576,10 +588,21 @@ static InterpreterResult run(){
                 push( NUMBER_VAL( -(AS_NUMBER(pop())) ) );
                 break;
             
-            case OP_PRINT:
+            case OP_PRINT: {
+                Value toStringName = OBJ_VAL(copyString("toString", 8));
+                push(toStringName);
+                Value toStringFunction = hasMethodNative(2, vm.stackTop - 2);
+                pop();
+                if (!IS_NIL(toStringFunction)){
+                    // call toString in separate callframe, then return to this instruction
+                    ip--;
+                    THROW(invoke(toStringName, 0));
+                    break;
+                }
                 printValue(pop());
                 printf("\n");
                 break;
+            }
 
             case OP_JUMP_IF_FALSE: {
                 uint16_t jump = READ_SHORT();
@@ -662,7 +685,14 @@ static InterpreterResult run(){
             }
 
             case OP_CLASS: {
-                push(OBJ_VAL(newClass(READ_STRING())));
+                ObjString* name = READ_STRING();
+                Value klass;
+                // if isSTL and class has sentinel counterpart, open that class
+                if (isSTL && tableGet(&vm.stl, OBJ_VAL(name), &klass)){
+                    push(klass);
+                    break;
+                }
+                push(OBJ_VAL(newClass(name)));
                 break;
             }
             case OP_GET_PROPERTY: {
@@ -808,5 +838,5 @@ InterpreterResult interpret(const char* source, bool evalExpr){
     push(OBJ_VAL(topLevelCode));
     callFunction(topLevelCode, 0);
 
-    return run();
+    return run(false);
 }
