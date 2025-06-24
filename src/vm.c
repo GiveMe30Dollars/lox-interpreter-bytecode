@@ -445,21 +445,15 @@ static InterpreterResult run(bool isSTL){
         do { \
             SAVE_IP(); \
             if (runtimeCall == false) return INTERPRETER_RUNTIME_ERROR; \
-            else{ \
-                LOAD_IP(); \
-                break; \
-            } \
+            else LOAD_IP(); \
         } while (false)
     
     #define BINARY_OP(valueType, op, alt)\
         do{ \
             if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))){ \
                 Value methodString = OBJ_VAL(copyString(alt, (int)strlen(alt))); \
-                SAVE_IP(); \
-                if (invoke(methodString, 1)){ \
-                    LOAD_IP(); \
-                    break; \
-                } else return INTERPRETER_RUNTIME_ERROR;\
+                THROW(invoke(methodString, 1));\
+                break; \
             } \
             double b = AS_NUMBER(pop()); \
             double a = AS_NUMBER(pop()); \
@@ -515,6 +509,7 @@ static InterpreterResult run(bool isSTL){
                 Value value;
                 if (!tableGet(&vm.globals, name, &value) && !tableGet(&vm.stl, name, &value)){
                     THROW(runtimeException("Undefined variable '%s'", AS_CSTRING(name)));
+                    break;
                 }
                 push(value);
                 break;
@@ -526,6 +521,7 @@ static InterpreterResult run(bool isSTL){
                     // isNewKey returned true. cannot set undeclared global variable.
                     tableDelete(table, name);
                     THROW(runtimeException("Undefined variable '%s'.", AS_CSTRING(name)));
+                    break;
                 }
                 break;
             }
@@ -720,6 +716,7 @@ static InterpreterResult run(bool isSTL){
                         break;
                     } else {
                         THROW(runtimeException("No static method of name '%s'.", AS_CSTRING(name)));
+                        break;
                     }
                 } else {
                     // look for sentinel class methods
@@ -727,6 +724,7 @@ static InterpreterResult run(bool isSTL){
                     Value sentinel = typeNative(1, &value);
                     if (IS_EMPTY(sentinel)){
                         THROW(runtimeException("This object does not have properties."));
+                        break;
                     } else {
                         klass = AS_CLASS(sentinel);
                     }
@@ -741,6 +739,7 @@ static InterpreterResult run(bool isSTL){
             case OP_SET_PROPERTY: {
                 if (!IS_INSTANCE(peek(1))){
                     THROW(runtimeException("Only instances have fields."));
+                    break;
                 }
                 ObjInstance* instance = AS_INSTANCE(peek(1));
                 Value name = READ_CONSTANT();
@@ -779,7 +778,8 @@ static InterpreterResult run(bool isSTL){
                     pop();
                     break;
                 } else {
-                    THROW(runtimeException("Superclass must be a class or an array of classes."));
+                    THROW(runtimeException("Superclass must be a class."));
+                    break;
                 }
             }
             case OP_INHERIT_MULTIPLE: {
@@ -789,6 +789,7 @@ static InterpreterResult run(bool isSTL){
                     Value superclass = superclassArray->data.values[i];
                     if (!IS_CLASS(superclass)){
                         THROW(runtimeException("Element must be a class for multiple inheritance."));
+                        break;
                     }
                     tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
                     tableAddAll(&AS_CLASS(superclass)->statics, &subclass->statics);
