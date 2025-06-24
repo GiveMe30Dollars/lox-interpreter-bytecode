@@ -213,6 +213,23 @@ Value arrayRawNative(int argCount, Value* args){
     }
     return OBJ_VAL(array);
 }
+Value arrayInitNative(int argCount, Value* args){
+    if (argCount == 0) return OBJ_VAL(newArray());
+    if (argCount > 2){
+        args[-1] = OBJ_VAL(copyString("Expected no more than 1 argument.", 33));
+        args[-1] = newException(args[-1]);
+        return EMPTY_VAL();
+    }
+    if (IS_NUMBER(args[0])){
+        ObjArray* array = newArray();
+        args[-1] = OBJ_VAL(array);
+        for (int i = 0; i < args[0]; i++){
+            writeValueArray(&array->data, NIL_VAL());
+        }
+        return args[-1];
+    }
+    return EMPTY_VAL();
+}
 Value arrayGetNative(int argCount, Value* args){
     ObjArray* array = AS_ARRAY(args[-1]);
     if (!IS_NUMBER(args[0]) || floor(AS_NUMBER(args[0])) != AS_NUMBER(args[0])) {
@@ -245,7 +262,7 @@ Value arraySetNative(int argCount, Value* args){
 Value arrayAppendNative(int argCount, Value* args){
     ObjArray* array = AS_ARRAY(args[-1]);
     writeValueArray(&array->data, args[0]);
-    return args[0];
+    return NIL_VAL();
 }
 Value arrayLengthNative(int argCount, Value* args){
     return NUMBER_VAL(AS_ARRAY(args[-1])->data.count);
@@ -278,10 +295,10 @@ ImportInfo buildSTL(){
         IMPORT_SENTINEL("Exception", 1),
             IMPORT_NATIVE("init", exceptionInitNative, 1),
         IMPORT_SENTINEL("Array", 6),
-            IMPORT_STATIC("_raw", arrayRawNative, -1),
-            IMPORT_STATIC("_allocate", arrayAllocateNative, 1),
-            IMPORT_NATIVE("_get", arrayGetNative, 1),
-            IMPORT_NATIVE("_set", arraySetNative, 2),
+            IMPORT_STATIC("@raw", arrayRawNative, -1),
+            IMPORT_NATIVE("init", arrayInitNative, -1),
+            IMPORT_NATIVE("get", arrayGetNative, 1),
+            IMPORT_NATIVE("set", arraySetNative, 2),
             IMPORT_NATIVE("append", arrayAppendNative, 1),
             IMPORT_NATIVE("length", arrayLengthNative, 0)
     };

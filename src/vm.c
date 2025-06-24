@@ -164,7 +164,7 @@ void stl(){
         }
     }
     freeSTL(imports);
-/*
+
     ObjFunction* stl = compile(readFile("src/stl.lox"), false);
     if (stl == NULL){
         fprintf(stderr, "STL failed to compile!");
@@ -176,7 +176,7 @@ void stl(){
         fprintf(stderr, "STL failed to run!");
         exit(74);
     }
-    else return;*/
+    else return;
 }
 
 // INITIALIZE/FREE VM

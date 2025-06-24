@@ -760,7 +760,7 @@ static void dot(bool canAssign){
 
 static void array(bool canAssign){
     uint8_t idxArray = syntheticConstant("Array");
-    uint8_t idxRaw = syntheticConstant("_raw");
+    uint8_t idxRaw = syntheticConstant("@raw");
     emitConstant(OP_GET_STL, idxArray);
     uint8_t argCount = 0;
     if (!check(TOKEN_RIGHT_BRACKET)){

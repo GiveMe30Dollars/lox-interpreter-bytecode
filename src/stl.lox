@@ -1,22 +1,6 @@
 
 class Array {
-    init(arg){
-        if (arg == nil){
-            this = Array._raw();
-        }
-        else if (type(arg) == Number){
-            this = Array._allocate(arg);
-        }
-        else throw Exception("Not implemented!");
-    }
-    get(idx){
-        return this._get(idx);
-    }
-    set(idx, value){
-        this._set(idx, value);
-        return value;
-    }
-
+    
     toString(){
         var str = "[";
         for (var i = 0; i < this.length(); i += 1){
@@ -49,7 +33,7 @@ class Array {
         if (fn.arity() != 1)
             throw Exception("Function must take in exactly one argument.");
         
-        var result = Array(nil);
+        var result = Array();
         for (var i = 0; i < this.length(); i += 1){
             if (fn(this[i]))
                 result.append(this[i]);
