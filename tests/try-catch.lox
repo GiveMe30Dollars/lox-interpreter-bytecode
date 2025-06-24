@@ -1,0 +1,6 @@
+try {
+    notGlobalVariable;
+    a = "No global variable!";
+} catch(e) {
+    print e;
+}
