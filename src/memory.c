@@ -84,6 +84,11 @@ void freeObject(Obj* object){
             FREE(ObjBoundMethod, object);
             break;
         }
+
+        case OBJ_EXCEPTION: {
+            FREE(ObjException, object);
+            break;
+        }
         case OBJ_ARRAY: {
             ObjArray* array = (ObjArray*)object;
             freeValueArray(&array->data);
@@ -210,6 +215,12 @@ static void blackenObject(Obj* object){
             ObjBoundMethod* bound = (ObjBoundMethod*)object;
             markValue(bound->receiver);
             markObject(bound->method);
+            break;
+        }
+
+        case OBJ_EXCEPTION: {
+            ObjException* exception = (ObjException*)object;
+            markValue(exception->payload);
             break;
         }
         case OBJ_ARRAY: {

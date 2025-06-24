@@ -8,7 +8,7 @@ class Complex {
     }
     add(other) {
         var real = this.real + other.real;
-        var imag = this.imag + other.real;
+        var imag = this.imag + other.imag;
         return Complex(real, imag);
     }
     multiply(other) {
@@ -20,7 +20,11 @@ class Complex {
 
 var c1 = Complex(2, 3);
 var c2 = Complex(4, 1);
+
+print c1.add(c2).toString();
 print (c1 + c2).toString();
 print (c1 * c2).toString();
 
-print (c1 - c2).toString();
+print c1;
+
+// print (c1 - c2).toString();

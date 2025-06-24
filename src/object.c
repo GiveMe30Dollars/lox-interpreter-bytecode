@@ -88,12 +88,22 @@ ObjString* printToString(const char* format, ...){
     va_start(args, format);
     int length = vsnprintf(NULL, 0, format, args);
     va_end(args);
+
     char* buffer = ALLOCATE(char, length + 1);
     va_start(args, format);
     vsnprintf(buffer, length + 1, format, args);
     va_end(args);
     buffer[length] = '\0';
+    
     return takeString(buffer, length);
+}
+ObjString* printFunctionToString(Value value){
+    switch(OBJ_TYPE(value)){
+        case OBJ_NATIVE:    return printToString("<fn %s>", AS_NATIVE(value)->name->chars);
+        case OBJ_FUNCTION:  return printToString("<fn %s>", AS_FUNCTION(value)->name->chars);
+        case OBJ_CLOSURE:   return printToString("<fn %s>", AS_CLOSURE(value)->function->name->chars);
+    }
+    return takeString("", 0);
 }
 
 // OBJUPVALUE METHODS
@@ -163,7 +173,14 @@ ObjBoundMethod* newBoundMethod(Value receiver, Obj* method){
     return bound;
 }
 
-// OBJARRAY METHODS
+// EXCEPTION METHODS
+ObjException* newException(Value payload){
+    ObjException* exception = ALLOCATE_OBJ(ObjException, OBJ_EXCEPTION);
+    exception->payload = payload;
+    return exception;
+}
+
+// ARRAY-RELATED METHODS
 ObjArray* newArray(){
     ObjArray* array = ALLOCATE_OBJ(ObjArray, OBJ_ARRAY);
     initValueArray(&array->data);
@@ -197,6 +214,12 @@ void printObject(Value value){
             printf("<%s instance>", AS_INSTANCE(value)->klass->name->chars); break;
         case OBJ_BOUND_METHOD:
             printObject(OBJ_VAL(AS_BOUND_METHOD(value)->method)); break;
+
+        case OBJ_EXCEPTION: {
+            printf("Exception: ");
+            printValue(AS_EXCEPTION(value)->payload);
+            break;
+        }
         case OBJ_ARRAY: {
             ObjArray* array = AS_ARRAY(value);
             int count = array->data.count;

@@ -43,6 +43,11 @@ Value typeNative(int argCount, Value* args){
                 return value;
             case OBJ_INSTANCE:
                 return OBJ_VAL(AS_INSTANCE(value)->klass);
+
+            case OBJ_EXCEPTION:{
+                sentinel = copyString("Exception", 9);
+                break;
+            }
             case OBJ_ARRAY: {
                 sentinel = copyString("Array", 5);
                 break;
@@ -92,15 +97,22 @@ Value stringPrimitiveNative(int argCount, Value* args){
             case OBJ_STRING:
                 return value;
             case OBJ_FUNCTION:
-                return OBJ_VAL(AS_FUNCTION(value)->name);
             case OBJ_NATIVE: 
-                return OBJ_VAL(AS_NATIVE(value)->name);
             case OBJ_CLOSURE:
-                return OBJ_VAL(AS_CLOSURE(value)->function->name);
+                return OBJ_VAL(printFunctionToString(value));
+            case OBJ_BOUND_METHOD:
+                return OBJ_VAL(printFunctionToString( OBJ_VAL(AS_BOUND_METHOD(value)->method) ));
+
             case OBJ_CLASS:
-                return OBJ_VAL(AS_CLASS(value)->name);
+                return OBJ_VAL(printToString("<class %s>", AS_CLASS(value)->name));
             case OBJ_INSTANCE:
                 return OBJ_VAL(printToString("<%s instance>", AS_INSTANCE(value)->klass->name->chars));
+
+            case OBJ_EXCEPTION: {
+                Value payload = AS_EXCEPTION(value)->payload;
+                Value payloadString = stringPrimitiveNative(1, &payload);
+                return OBJ_VAL(printToString("Exception: %s", AS_CSTRING(payloadString)));
+            }
             case OBJ_ARRAY:
                 return OBJ_VAL(copyString("<Array instance>", 16));
         }
@@ -172,6 +184,13 @@ Value stringLengthNative(int argCount, Value* args){
 
 Value functionArityNative(int argCount, Value* args){
     return NUMBER_VAL(AS_FUNCTION(args[-1])->arity);
+}
+
+// EXCEPTION SENTINEL METHODS
+
+Value exceptionInitNative(int argCount, Value* args){
+    ObjException* exception = newException(args[0]);
+    return OBJ_VAL(exception);
 }
 
 
@@ -256,6 +275,8 @@ ImportInfo buildSTL(){
         IMPORT_SENTINEL("Function", 1),
             IMPORT_NATIVE("arity", functionArityNative, 0),
 
+        IMPORT_SENTINEL("Exception", 1),
+            IMPORT_NATIVE("init", exceptionInitNative, 1),
         IMPORT_SENTINEL("Array", 6),
             IMPORT_STATIC("_raw", arrayRawNative, -1),
             IMPORT_STATIC("_allocate", arrayAllocateNative, 1),

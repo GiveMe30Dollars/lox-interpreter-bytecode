@@ -1239,8 +1239,8 @@ static void this_ (bool canAssign){
         error("Cannot use 'this' in a static method.");
         return;
     }
-    // treat as (assignable) local variable
-    variable(true);
+    // treat as local variable
+    variable(false);
 }
 static void super_ (bool canAssign){
     if (currentClass == NULL){

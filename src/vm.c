@@ -82,7 +82,7 @@ static bool throwValue(Value* payload){
         }
     }
     if (newFrameCount == 0){
-        runtimeError("Uncaught Exception: %s", AS_CSTRING(stringPrimitiveNative(1, payload)) );
+        runtimeError("Uncaught %s", AS_CSTRING(stringPrimitiveNative(1, payload)) );
         return false;
     }
 
@@ -111,9 +111,12 @@ static bool runtimeException(const char* format, ...){
     buffer[bufferSize] = '\0';
     va_end(args);
 
-    Value payload = OBJ_VAL(takeString(buffer, bufferSize));
     // push onto stack to prevent garbage collector headaches
+    Value payload = OBJ_VAL(takeString(buffer, bufferSize));
     push(payload);
+    Value exception = OBJ_VAL(newException(payload));
+    push(exception);
+    
     return throwValue(vm.stackTop - 1);
 }
 
@@ -161,7 +164,7 @@ void stl(){
         }
     }
     freeSTL(imports);
-
+/*
     ObjFunction* stl = compile(readFile("src/stl.lox"), false);
     if (stl == NULL){
         fprintf(stderr, "STL failed to compile!");
@@ -173,7 +176,7 @@ void stl(){
         fprintf(stderr, "STL failed to run!");
         exit(74);
     }
-    else return;
+    else return;*/
 }
 
 // INITIALIZE/FREE VM
@@ -403,8 +406,7 @@ bool invoke(Value name, int argCount){
             return callValue(value, argCount);
         } else {
             // no static method found
-            runtimeException("No static method of name '%s'.", AS_CSTRING(name));
-            return false;
+            return runtimeException("No static method of name '%s'.", AS_CSTRING(name));
         }
     } else {
         // Find sentinel
@@ -414,8 +416,7 @@ bool invoke(Value name, int argCount){
             return invokeFromClass(AS_CLASS(sentinel), name, argCount);
         }
         // Nothing.
-        runtimeException("Object does not have methods.");
-        return false;
+        return runtimeException("Object does not have methods.");
     }
 }
 
@@ -453,14 +454,12 @@ static InterpreterResult run(bool isSTL){
     #define BINARY_OP(valueType, op, alt)\
         do{ \
             if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))){ \
+                Value methodString = OBJ_VAL(copyString(alt, (int)strlen(alt))); \
                 SAVE_IP(); \
-                Value method = OBJ_VAL(copyString(alt, (int)strlen(alt))); \
-                if (invoke(method, 1)){ \
+                if (invoke(methodString, 1)){ \
                     LOAD_IP(); \
                     break; \
-                } else { \
-                    if (vm.frameCount == 0) return INTERPRETER_RUNTIME_ERROR; \
-                }\
+                } else return INTERPRETER_RUNTIME_ERROR;\
             } \
             double b = AS_NUMBER(pop()); \
             double a = AS_NUMBER(pop()); \
