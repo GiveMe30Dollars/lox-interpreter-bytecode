@@ -6,7 +6,7 @@ The reason I needed container classes (`ObjArray` specifically and no others) in
 
 Multiple inheritance can be defined using an array literal of identifiers:
 
-```
+```c++
 class Animal {}
 class Flying {
     fly() {
@@ -26,7 +26,7 @@ class Bird < [Flying, Mammal] {
 
 This wasn't too hard, though I did have to ponder whether I would let *any expression* be a superclass:
 
-```
+```c++
 class Derived < getBase(params) {
     // ...
 }

@@ -10,7 +10,7 @@ No really. Think about it.
 
 Keep in mind that the current types of heap-allocated objects are the following:
 
-```
+```c
 typedef enum {
     OBJ_STRING,
     OBJ_UPVALUE,
@@ -32,7 +32,7 @@ I created [`memtest.lox`](../../tests/memtest.lox) for these types specifically,
 
 I used this little line whenever I wanted to manually trigger a reallocation (and subsequent garbage collection):
 
-```
+```kotlin
 var b = "update"
 print "${b}: trigger GC!";
 ```
@@ -41,7 +41,7 @@ This is as much a documentation for me as it is for you (the hypothetical reader
 
 ## Dynamically-Allocated Strings
 
-```
+```kotlin
 var a = "first value";
 var b = "update";
 
@@ -59,7 +59,7 @@ Let's ignore the GC filling the logs when we initialize the VM. Those are native
 
 What we care about is when the VM reaches the execution of this line:
 
-```
+```kotlin
     var b = "${a}: dynamically-created string.";
 ```
 
@@ -67,7 +67,7 @@ This creates a local variable that is assigned the value of a dynamically-alloca
 
 Then, when we reach the GC-trigerring line:
 
-```
+```kotlin
     print "${b}: trigger GC!";
 ```
 
@@ -83,7 +83,7 @@ Note that because the trigger line works by creating an inaccessible dynamically
 
 I had to reread my logs to make sure I wasn't going insane. Turns out I was just misunderstanding scope.
 
-```
+```c++
 for (var i = 0; i < 5; i += 1){
     {
         var mult = fun(n) {i * n};

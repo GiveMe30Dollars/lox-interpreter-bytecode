@@ -8,7 +8,7 @@ Intermediate structures are used to pass information between the main parts, and
 
 Scanning takes in a C-string `\0`-terminated input and scans them for tokens. It is single-pass and acts as an iterator through the source string.
 
-```
+```c
 // scanner.h
 void initScanner(const char* source);
 Token scanToken();
@@ -28,7 +28,7 @@ typedef struct {
 
 Tokens are substrings of the code (lexemes) that are categorized by their TokenType.
 
-```
+```c
 // scanner.h
 typedef struct {
     TokenType type;
@@ -43,7 +43,7 @@ Note: `start` points directly into the source string. No strings are copied duri
 
 Compilation takes in Tokens from the Scanner and parses them using Pratt Parsing. The rules for Pratt Parsing are encoded within `parseRules` ni `vm.c`, which returns function pointers for the prefix and infix rules corresponding to a TokenType, with their precedence ranked by ascending binding power in the enum Precedence.
 
-```
+```c
 // compiler.h
 bool compile(const char* source, Chunk* chunk);
 ```
@@ -54,7 +54,7 @@ There exists several private transient states that are destroyed upon completion
 
 The Parser tracks the previous and current tokens parsed, as well as parsing-related behaviour flags.
 
-```
+```c
 typedef struct {
     Token previous;
     Token current;
@@ -67,7 +67,7 @@ typedef struct {
 
 The Compiler acts as a mirror to the Virtual Machine's stack for resolving local scope of variables.
 
-```
+```c
 typedef struct {
     Token name;
     int depth;
@@ -87,7 +87,7 @@ typedef struct {
 
 The Chunk contains most of the compilation information required to run the Lox VM.
 
-```
+```c
 // chunk.h
 typedef struct {
     int count;
@@ -107,7 +107,7 @@ typedef struct {
 
 Chunks are encapsulated in Lox functions, which are created at compile-time and passed to the VM:
 
-```
+```c
 // object.h
 typedef struct{
     Obj obj;
@@ -123,7 +123,7 @@ typedef struct{
 
 ### String Intern Table
 
-```
+```c
 // hashtable.h
 typedef struct {
     int count;
@@ -159,7 +159,7 @@ It is possible, though not immediatly helpful, to decouple the string intern tab
 
 The Lox Virtual Machine executes stack-based bytecode in Chunk.
 
-```
+```c
 typedef struct {
     ObjFunction* function;
     uint8_t* ip;

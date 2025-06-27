@@ -11,7 +11,7 @@ String interpolations begin with the symbols `${` in a string, and are terminate
 
 String interpolations also support nesting and chaining:
 
-```
+```kotlin
 print "Nested ${ "interpolations? ${"Why??"}" }";
 print "Chaining ${"seems"} more ${"commonplace"} though.";
 // Nested interpolations? Why??
@@ -20,7 +20,7 @@ print "Chaining ${"seems"} more ${"commonplace"} though.";
 
 *Note:* String interpolation is syntactic sugar for function calls to native functions `string` and `concatenate`. These two lines are equivalent:
 
-```
+```kotlin
 var drink = "Tea";
 var steep = 4;
 var cool = 2;

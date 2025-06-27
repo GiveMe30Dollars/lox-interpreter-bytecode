@@ -29,7 +29,7 @@ There are changes in scanning behaviour for strings and braces:
 
 These changes are found in lines 132-161, 254-277, and 306. The bitmasking operations described above are done using:
 
-```
+```c
 scanner.braces |= (1 << scanner.braceIdx++);                             // String interpolation
 
 scanner.braceIdx++;                                                      // Left brace
@@ -65,7 +65,7 @@ With reference to [Wren's implemetation](https://github.com/wren-lang/wren/blob/
 
 The pseudocode is as such:
 
-```
+```c
 // we came here from the Pratt Parser
 // the TOKEN_INTERPOLATION is in parser.previous
 

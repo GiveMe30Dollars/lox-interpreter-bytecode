@@ -2,7 +2,7 @@
 
 The Lox REPL supports evaluating expressions. The result of the evaluation, if not `nil`, is automatically printed onto the REPL output. This is due to all function calls implicitly returning `nil` unless specified otherwise.
 
-```
+```c++
 >>> var a = 3;
 >>> var b = 7;
 >>> a + b

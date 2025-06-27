@@ -6,7 +6,7 @@
 
 To make my life easier for the VM, I collected all of the variant opcodes in this helper function:
 
-```
+```c
 // in chunk.h
 
 static inline bool isLongOpcode(Opcode op){
@@ -48,7 +48,7 @@ Keeping these variants in mind when writing code is a slog. The chunk's `addCons
 
 `emitConstant()` has been changed to the following:
 
-```
+```c
 static void emitConstant(Opcode instruction, uint32_t constIdx){
     if ((constIdx & 0xff) == constIdx){
         emitBytes(instruction, (uint8_t)constIdx);
@@ -75,7 +75,7 @@ I jest, don't worry. An upcoming section will help us test the emitting of `LONG
 
 Since the only difference a normal opcode and its `LONG` variant is how it reads constants, we only really need to substantially change the `READ_CONSTANT()` preprocessor macro and friends:
 
-```
+```c
 // in run()
     #define READ_LONG()       (ip += 3, (uint32_t)ip[-3] << 16 | ip[-2] << 8 | ip[-1])
     #define READ_CONSTANT(instruction) \
@@ -94,7 +94,7 @@ Cramming 256 constants into code is hard. Let's artifically induce that behaviou
 
 In `initChunk`, we detect whether preprocessor flag `CHUNK_TEST_LONG_OPCODES` is defined, and if so:
 
-```
+```c
 // in initChunk(), after everything else
     #ifdef CHUNK_TEST_LONG_OPCODES
     ValueArray* array = &chunk->constants;

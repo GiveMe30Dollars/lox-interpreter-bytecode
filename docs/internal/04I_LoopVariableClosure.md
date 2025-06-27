@@ -25,7 +25,7 @@ Seeing that I already done `b.` for emitting the bytecode for clearing the local
 
 Break and continue now need access to the stack positions of the loop and inner variables, so we stuff that into the LoopInfo struct.
 
-```
+```c
 typedef struct LoopInfo {
     int loopStart;
     int loopDepth;
@@ -44,7 +44,7 @@ Since these fields are specific to `for` loops, I initialize them to `-1` (indic
 
 We already know how to assign the loop variable to the value of the inner variable:
 
-```
+```c
 // in continueStatement():
     // assign inner variable to loop variable (if any)
     if (current->loop->loopVariable != -1){
@@ -58,7 +58,7 @@ However, after popping the local variables, we also need to get rid of the inner
 
 I first naively thought to just pop the variable. But isn't the whole point of this change to allow the inner variable to be captured by a closure? So, whether to emit `OP_POP` or `OP_CLOSE_UPVALUE` depends on whether the inner variable is captured:
 
-```
+```c
 // in continueStatement()
     // remove inner variable (if any): OP_CLOSE_UPVALUE if captured, OP_POP otherwise
     if (current->loop->loopVariable != -1)
@@ -71,7 +71,7 @@ This is repeated in `breakStatement`, though since we're breaking out of the ent
 
 Consider the following:
 
-```
+```c
 var global;
 for (;;){
     var a = 3;
@@ -98,7 +98,7 @@ Yeah....
 
 This was admittedly a pretty simple fix. In `emitPrejumpPops`, check whether the variable is captured, and emit `OP_CLOSE_UPVALUE`. This is essentially a copy-paste of `endScope` without modifying the locals array:
 
-```
+```c
 static void emitPrejumpPops(){
     // iterates through locals (does not affect it!), emits pops for values within the loop
     // if the loop has a captured value, emit OP_CLOSE_UPVALUE instead
