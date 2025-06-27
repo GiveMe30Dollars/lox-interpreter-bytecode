@@ -200,7 +200,9 @@ Value exceptionInitNative(int argCount, Value* args){
     ObjException* exception = newException(args[0]);
     return OBJ_VAL(exception);
 }
-
+Value exceptionPayloadNative(int argCount, Value* args){
+    return AS_EXCEPTION(args[-1])->payload;
+}
 
 // ARRAY SENTINEL METHODS
 
@@ -338,8 +340,10 @@ ImportInfo buildSTL(){
         IMPORT_SENTINEL("Function", 1),
             IMPORT_NATIVE("arity", functionArityNative, 0),
 
-        IMPORT_SENTINEL("Exception", 1),
+        IMPORT_SENTINEL("Exception", 2),
             IMPORT_NATIVE("init", exceptionInitNative, 1),
+            IMPORT_NATIVE("payload", exceptionPayloadNative, 0),
+
         IMPORT_SENTINEL("Array", 8),
             IMPORT_STATIC("@raw", arrayRawNative, -1),
             IMPORT_NATIVE("init", arrayInitNative, -1),
