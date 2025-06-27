@@ -22,9 +22,21 @@ var c1 = Complex(2, 3);
 var c2 = Complex(4, 1);
 
 print c1.add(c2).toString();
-print (c1 + c2).toString();
-print (c1 * c2).toString();
+print c1 + c2;
+print c1 * c2;
 
 print c1;
 
 // print (c1 - c2).toString();
+
+class BadStringCast{
+    toString(arg){
+        // uhhh....
+        return "";
+    }
+}
+try{
+    print BadStringCast();
+} catch(e){
+    print e;
+}

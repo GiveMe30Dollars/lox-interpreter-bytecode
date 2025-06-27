@@ -71,16 +71,22 @@ Value hasMethodNative(int argCount, Value* args){
     return NIL_VAL();
 }
 
+// NATIVE METHOD FAILURES
+static inline void writeException(Value* args, Value payload){
+    args[-1] = payload;
+    args[-1] = OBJ_VAL(newException(payload));
+}
+static inline void indexNotNumber(Value* args){
+    ObjString* message = printToString("Index must be a whole number.");
+    writeException(args, OBJ_VAL(message));
+}
+static inline void indexOutOfRange(Value* args){
+    ObjString* message = printToString("Index out of range.");
+    writeException(args, OBJ_VAL(message));
+}
+
 
 // STRING SENTINEL METHODS
-
-static inline Value indexNotNumber(){
-    return OBJ_VAL(copyString("Index must be a whole number.", 29));
-}
-static inline Value indexOutOfRange(){
-    return OBJ_VAL(copyString("Index out of range.", 19));
-}
-
 
 Value stringPrimitiveNative(int argCount, Value* args){
     Value value = args[0];
@@ -126,7 +132,9 @@ Value stringNative(int argCount, Value* args){
     args[1] = toStringName;
     Value hasToString = hasMethodNative(2, args);
     if (!IS_NIL(hasToString)){
-        memcpy(&args[-1], &args[0], sizeof(Value));
+        // rearrange for call signature of toString().
+        args[-1] = args[0];
+        pop();
         invoke(toStringName, 0);
         return EMPTY_VAL();
     }
@@ -165,15 +173,15 @@ Value stringAddNative(int argCount, Value* args){
 Value stringGetNative(int argCount, Value* args){
     ObjString* str = AS_STRING(args[-1]);
     if (!IS_NUMBER(args[0]) || floor(AS_NUMBER(args[0])) != AS_NUMBER(args[0])) {
-        args[-1] = indexNotNumber();
+        indexNotNumber(args);
         return EMPTY_VAL();
     }
     int idx = (int)AS_NUMBER(args[0]);
-    if (idx >= str->length || idx < -str->length){
-        args[-1] = indexOutOfRange();
+    if (idx < 0) idx += str->length;
+    if (idx >= str->length || idx < 0){
+        indexOutOfRange(args);
         return EMPTY_VAL();
     }
-    if (idx < 0) idx += str->length;
     return OBJ_VAL(copyString(&str->chars[idx], 1));
 }
 Value stringLengthNative(int argCount, Value* args){
@@ -196,15 +204,23 @@ Value exceptionInitNative(int argCount, Value* args){
 
 // ARRAY SENTINEL METHODS
 
-Value arrayAllocateNative(int argCount, Value* args){
-    int num = (int)AS_NUMBER(args[0]);
-    ObjArray* array = newArray();
-    args[-1] = OBJ_VAL(array);
-    for (int i = 0; i < num; i++){
-        writeValueArray(&array->data, NIL_VAL());
+// defines idx as an integer if the value given is a whole number within the bounds of the array given.
+// otherwise, does error logging and returns -1 to signal an error.
+static int checkIndex(Value* args, ObjArray* array, Value target){
+    if (!IS_NUMBER(target) || floor(AS_NUMBER(target)) != AS_NUMBER(target)) {
+        indexNotNumber(args);
+        return -1;
     }
-    return OBJ_VAL(array);
+    int idx = (int)AS_NUMBER(target);
+    if (idx < 0) idx += array->data.count;
+    if (idx >= array->data.count || idx < 0){
+        indexOutOfRange(args);
+        return -1;
+    }
+    return idx;
 }
+
+
 Value arrayRawNative(int argCount, Value* args){
     ObjArray* array = newArray();
     args[-1] = OBJ_VAL(array);
@@ -217,7 +233,7 @@ Value arrayInitNative(int argCount, Value* args){
     if (argCount == 0) return OBJ_VAL(newArray());
     if (argCount > 2){
         args[-1] = OBJ_VAL(copyString("Expected no more than 1 argument.", 33));
-        args[-1] = newException(args[-1]);
+        args[-1] = OBJ_VAL(newException(args[-1]));
         return EMPTY_VAL();
     }
     if (IS_NUMBER(args[0])){
@@ -232,36 +248,66 @@ Value arrayInitNative(int argCount, Value* args){
 }
 Value arrayGetNative(int argCount, Value* args){
     ObjArray* array = AS_ARRAY(args[-1]);
-    if (!IS_NUMBER(args[0]) || floor(AS_NUMBER(args[0])) != AS_NUMBER(args[0])) {
-        args[-1] = indexNotNumber();
-        return EMPTY_VAL();
-    }
-    int idx = (int)AS_NUMBER(args[0]);
-    if (idx >= array->data.count || idx < -array->data.count){
-        args[-1] = indexOutOfRange();
-        return EMPTY_VAL();
-    }
-    if (idx < 0) idx += array->data.count;
+    int idx = checkIndex(args, array, args[0]);
+    if (idx == -1) return EMPTY_VAL();
+
     return array->data.values[idx];
 }
 Value arraySetNative(int argCount, Value* args){
     ObjArray* array = AS_ARRAY(args[-1]);
-    if (!IS_NUMBER(args[0]) || floor(AS_NUMBER(args[0])) != AS_NUMBER(args[0])) {
-        args[-1] = indexNotNumber();
-        return EMPTY_VAL();
-    }
-    int idx = (int)AS_NUMBER(args[0]);
-    if (idx >= array->data.count || idx < -array->data.count){
-        args[-1] = indexOutOfRange();
-        return EMPTY_VAL();
-    }
-    if (idx < 0) idx += array->data.count;
+    int idx = checkIndex(args, array, args[0]);
+    if (idx == -1) return EMPTY_VAL();
+
     array->data.values[idx] = args[1];
     return args[1];
 }
 Value arrayAppendNative(int argCount, Value* args){
     ObjArray* array = AS_ARRAY(args[-1]);
     writeValueArray(&array->data, args[0]);
+    return NIL_VAL();
+}
+Value arrayInsertNative(int argCount, Value* args){
+    ObjArray* array = AS_ARRAY(args[-1]);
+
+    // have to handle index checking ourselves because arr[length] is a valid index to insert in
+    Value target = args[0];
+    if (!IS_NUMBER(target) || floor(AS_NUMBER(target)) != AS_NUMBER(target)) {
+        indexNotNumber(args);
+        return EMPTY_VAL();
+    }
+    int idx = (int)AS_NUMBER(target);
+    if (idx < 0) idx += array->data.count;
+    // the change is here!
+    if (idx > array->data.count || idx < 0){
+        indexOutOfRange(args);
+        return -1;
+    }
+
+    if (idx == array->data.count){
+        // equivalent to appending
+        writeValueArray(&array->data, args[1]);
+        return NIL_VAL();
+    } else {
+        // memmove subsequent elements one step away, then add
+        writeValueArray(&array->data, NIL_VAL());
+        memmove(&array->data.values[idx + 1], &array->data.values[idx], (array->data.count - idx - 1) * sizeof(Value));
+        array->data.values[idx] = args[1];
+        return NIL_VAL();
+    }
+}
+Value arrayDeleteNative(int argCount, Value* args){
+    ObjArray* array = AS_ARRAY(args[-1]);
+    int idx = checkIndex(args, array, args[0]);
+    if (idx == -1) return EMPTY_VAL();
+
+    if (idx == array->data.count - 1){
+        // tail: simply decrement count
+        array->data.count--;
+        return NIL_VAL();
+    }
+    // non-tail: memmove subsequent elements to this position
+    array->data.count--;
+    memmove(&array->data.values[idx], &array->data.values[idx + 1], (array->data.count - idx) * sizeof(Value));
     return NIL_VAL();
 }
 Value arrayLengthNative(int argCount, Value* args){
@@ -294,12 +340,14 @@ ImportInfo buildSTL(){
 
         IMPORT_SENTINEL("Exception", 1),
             IMPORT_NATIVE("init", exceptionInitNative, 1),
-        IMPORT_SENTINEL("Array", 6),
+        IMPORT_SENTINEL("Array", 8),
             IMPORT_STATIC("@raw", arrayRawNative, -1),
             IMPORT_NATIVE("init", arrayInitNative, -1),
             IMPORT_NATIVE("get", arrayGetNative, 1),
             IMPORT_NATIVE("set", arraySetNative, 2),
             IMPORT_NATIVE("append", arrayAppendNative, 1),
+            IMPORT_NATIVE("insert", arrayInsertNative, 2),
+            IMPORT_NATIVE("delete", arrayDeleteNative, 1),
             IMPORT_NATIVE("length", arrayLengthNative, 0)
     };
 
