@@ -2,7 +2,7 @@
 
 The experimental branch `containers` supports `try`-`catch` clauses and `throw` statements.
 
-```
+```c++
 fun fac(n){
     if (n < 0) throw "Error: n cannot be negative.";
     

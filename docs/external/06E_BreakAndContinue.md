@@ -2,7 +2,7 @@
 
 Break and continue statements are now supported in Lox `while` and `for` loops:
 
-```
+```c++
 for (var i = 0; i <= 5; i += 1){
     if (i == 2) continue;
     if (i == 4) break;

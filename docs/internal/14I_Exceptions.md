@@ -18,7 +18,7 @@ Yep.
 
 This does necessitate adding an additional boolean field `bool fromTry` in `ObjFunction` for whether this function/closure is created from a try clause. Beats messing with the call frames themselves or adding a new data type, though.
 
-```
+```c
 typedef struct {
     Obj obj;
     int arity;
@@ -41,7 +41,7 @@ Compiling the `throw` statement is easy. It's near identical to a return stateme
 
 Since we're going to call this from the VM as well, let's separate this off into its own function.
 
-```
+```c
 static bool throwValue(Value* payload){
     // What goes here?
 }
@@ -55,7 +55,7 @@ We need a way to indicate whether the exception throw leads to a valid state whe
 
 For the sake of easier plumbing through the VM, I also added another helper function `runtimeException` that mimics the semantics of `runtimeError` by constructing and throwing an `ObjString`.
 
-```
+```c
 static bool runtimeException(const char* format, ...){
     // create a printf-style message to an ObjString, pushed onto the stack
     // then, throw it.
@@ -80,7 +80,7 @@ static bool runtimeException(const char* format, ...){
 
 As well as some preprocessor macros to save and load the `ip` from the topmost callframe to a local register pointer as described in [Challenge 24-1](https://github.com/munificent/craftinginterpreters/blob/master/note/answers/chapter24_calls/1.md):
 
-```
+```c
 // in run():
     #define SAVE_IP()       (frame->ip = ip)
     #define LOAD_IP() \
@@ -98,7 +98,7 @@ As well as some preprocessor macros to save and load the `ip` from the topmost c
 
 Then, whenever we want to throw a runtime exception in run(), we can use them.
 
-```
+```c
 // in run():
             case OP_SET_GLOBAL: {
                 Value name = READ_CONSTANT();
@@ -112,4 +112,4 @@ Then, whenever we want to throw a runtime exception in run(), we can use them.
             }
 ```
 
-That's pretty clean if I do say so myself.
+That almost reads like plaintext!

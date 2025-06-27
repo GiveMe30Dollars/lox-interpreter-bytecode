@@ -2,7 +2,7 @@
 
 The experimental branch `containers` supports multiple inheritance. A class may inherit from multiple base classes via use of an array literal.
 
-```
+```c++
 class BaseA {/*...*/}
 class BaseB {/*...*/}
 
@@ -15,7 +15,7 @@ The array must be a flat array of identifiers, with each identifier correspondin
 
 The `super` keyword must be disambugated with subscript notation when used with multiple inheritance.
 
-```
+```c++
 class Derived < [BaseA, BaseB]{
     method(){
         super[0].method();          // method in class BaseA

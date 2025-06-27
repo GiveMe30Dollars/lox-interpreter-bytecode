@@ -24,7 +24,7 @@ Hence, I opted to implement constant variable checking for only local variables.
 
 The compiler Local and Upvalue structs now have one new field:
 
-```
+```c
 typedef struct {
     Token name;
     int depth;
@@ -45,7 +45,7 @@ I could just only store this in only the Local struct, but then I'll have to wal
 
 `constIdentifier` is reported as an error if we get all the way to a `parseVariable` and we find out we're parsing a global variable:
 
-```
+```c
 // in parseVariable()
     if (current->scopeDepth > 0) return 0;
     if (constIdentifier != NULL)

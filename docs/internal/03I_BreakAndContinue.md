@@ -18,7 +18,7 @@ Also, we cannot discard this information whenever a new loop is made. *Loops nes
 
 ## Yeah This Is `Compiler*` All Over Again
 
-```
+```c
 typedef struct LoopInfo {
     int loopStart;
     int loopDepth;
@@ -43,7 +43,7 @@ Like `Compiler`, LoopInfo "instances" are never dynamically allocated. They are 
 
 The Compiler has a new field added for the pointer to the current loop, `NULL`-initialized when a Compiler is first created:
 
-```
+```c
 typedef struct Compiler {
     // ...
     LoopInfo* loop;
@@ -72,7 +72,7 @@ Similarly, when we're exiting a loop, we call a "destructor":
 
 Consider the state of the VM stack when the `break` statement is reached:
 
-```
+```c++
 {
     var outer;
     while (true){
@@ -101,7 +101,7 @@ Before we jump out of the while loop, we need to "clean house" and pop off local
 
 Because Lox does not allow declarations inline with control flow statements, the only place a local variable could be declared in is in a block. If that sounds like resolving local scope, *that's because it is*, and we already have a handy representation for that during compile-time:
 
-```
+```c
 typedef struct Compiler {
     // ...
     Local locals[UINT8_COUNT];

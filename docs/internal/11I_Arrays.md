@@ -51,7 +51,7 @@ Currently, arrays only support integer indexing. A later addition would be Pytho
 
 ## Syntactic Sugar for Thought
 
-There is no runtime check for whether a class inherits from a higher class to be able to use subscript notation. All you need to make use of it is to implement `get` and optionally `set` (for immutable types).
+There is no runtime check for whether a class inherits from a higher class to be able to use subscript notation. All you need to make use of it is to implement `get` and optionally `set` (for immutable types, don't do this lol).
 
 This is... a choice.
 

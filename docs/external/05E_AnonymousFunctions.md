@@ -22,21 +22,21 @@ array.reduce( fun(a,b){a + b} );
 
 Note that due to existing Lox syntax rules for defining named functions, an anonymous function or lambda as a standalone expression is invalid syntax:  
 
-```
+```c++
 fun (m, n){ m + n };
 // Error at '(':  Expect function name.
 ```
 
 Consider wrapping the anonymous function in parentheses:
 
-```
+```c++
 (fun (m,n){ m + n });
 // This won't throw a compile error. It's just not particularly useful since we can't access it.
 ```
 
 Unlike named functions, anonymous functions may be called as soon as they are defined using the typical call syntax `()`:
 
-```
+```c++
 (fun () { print "Self-calling!"; })();
 ```
 

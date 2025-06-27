@@ -29,7 +29,7 @@ To prevent two anonymous functions having the same hash, we wrap the logic in a 
 
 Here it is, in all its glory:
 
-```
+```c
 // in object.c, declared in object.h
 
 ObjString* lambdaString(){
@@ -48,11 +48,13 @@ When initializing the VM, `vm.hash` is initialized to 0. Since nothing else uses
 
 Title card!
 
+*Update:* in experimental branch `containers`, lambdaString has been rewritten to emit strings in ascending order. It ultimately doesn't matter whether a function has the same name as another because they are all compared by pointer value internally. It just makes disassembly look nicer.
+
 ## Extra Details
 
 Honestly there's nothing much else to add for this functionality. `TOKEN_FUN` now has a zero-binding-power prefix rule that leads to a very barren pass to `function()`:
 
-```
+```c
 static void lambda(bool canAssign){
     function(TYPE_LAMBDA);
 }
@@ -62,7 +64,7 @@ Since function declarations parse earlier than this, it is correctly shadowed by
 
 We add a new function type `TYPE_LAMBDA`, which acts as a flag to tell the compiler to get a random name, and to allow the body to be parsed as a single expression. An `OP_RETURN` is emitted if it is an expression body so it is equivalent to `return expression`:
 
-```
+```c
 // in initCompiler():
 
     if (type == TYPE_LAMBDA){

@@ -37,7 +37,7 @@ Dumping the STL into the globals hash table is a *terrible* idea.
 
 It works fine-enough until somewhere in your program you overwrite it:
 
-```
+```c
 var clock = "Time Will Tell";
 // Hey I think the clock() native function is gone forever
 ```
@@ -50,7 +50,7 @@ Python is an exception.
 
 You can shadow an STL feature, but not *overwrite* it. They're still there and are accessible even when they are shadowed, and when the shadowing variable is deleted the STL reasserts itself:
 
-```
+```python
 >>> bool = "Not a callable"
 >>> type(bool)
 <class 'str'>
@@ -109,7 +109,7 @@ C doesn't like arbitrary nesting without manual allocation or some level of poin
 
 So I improvised.
 
-```
+```c
 typedef enum {
     IMPORT_NATIVE,
     IMPORT_SENTINEL,

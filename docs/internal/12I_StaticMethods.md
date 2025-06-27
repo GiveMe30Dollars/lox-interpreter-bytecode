@@ -44,7 +44,7 @@ Disallowing `this` in static methods is a no-brainer. Static methods can be call
 
 What is a bit tricky is accessing a static method via `super` from a non-static method:
 
-```
+```c++
 class Base {
     static pi() {
         return 3.1415;
@@ -89,7 +89,7 @@ It's bad practice, for sure, but I'll allow it.
 
 ## Initializers...
 
-```
+```c++
 class E {}
 var a = E();
 var b = E.init();
