@@ -143,3 +143,11 @@ Note that the sentinel struct stores the number of methods in it. This assumes a
 The `IMPORT_STATIC` enum doesn't have a corresponding struct. This is because they are treated identically to native methods up until inserting it into a hash table, where it also goes into the class's `statics` hash table.
 
 An `ImportStruct` flat array is dynamically allocated and deallocated upon initializing the VM to insert these into the VM's STL hash table.
+
+## Inheriting Sentinels
+
+Disclaimer: it's not pretty.
+
+Inheriting from a sentinel is a bad idea, period. Calling `super.init` would degrade the instance to a primitive data type, and doing anything with its fields afterwards would segfault. Using any of the sentinel methods on a Lox instance would also segfault.
+
+I'll probably prohibit this during runtime. As of now, though, nothing is stopping you from doing it, but its not a good idea. Even for something like `Exception` (or should I call it BaseException?).
