@@ -436,3 +436,9 @@ I can see arguments for and against this. Done purposefully, it could be rather 
 ## Why Are We Doing This?
 
 Do you see why most dynamic languages simply *don't?*
+
+I'll admit that typing this out gave me a lot to chew on, and it does sound exciting, but this is a rather large structural change to how Lox works.
+
+As of writing, I have not implemented this yet. I *want to*, but I also want to add tail calls and array slicing and first-class hash tables, and those are easier *by far*. This feels like branch material.
+
+Keep an eye out here, I suppose. Let's see if I'll end up implementing it.
