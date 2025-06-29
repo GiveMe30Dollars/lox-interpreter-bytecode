@@ -100,7 +100,7 @@ My bad. Temper your expectations. I am not an authority on *any* of this.
 
 Thanks, Wikipedia. And *thanks*, Wikipedia.
 
-
+![Screenshot 2025-06-30 045507](https://github.com/user-attachments/assets/d7e90445-65da-4218-8cd1-5e9a6ff1ffee)
 
 <h2 style="color:red">Preamble and Setting Expectations</h2>
 
