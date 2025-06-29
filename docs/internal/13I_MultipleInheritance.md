@@ -61,7 +61,7 @@ As CLox uses copy-down inheritance, the position in which the superclass is posi
 
 Therefore, this inheritance chain —
 
-```
+```c++
 class A {
     method() {
         // Implementation details...
