@@ -11,7 +11,8 @@ What made me end up consider adding it was a confluence of the following:
     fun createMapIterator(container){
         var Iterator = type(container.iter());
         class MapIterator < Iterator {
-            init(fn){
+            init(..., fn){
+                super.init(...);
                 this.fn = fn;
             }
             hasNext(){
@@ -28,7 +29,8 @@ What made me end up consider adding it was a confluence of the following:
     fun createFilterIterator(container){
         var Iterator = type(container.iter());
         class FilterIterator < Iterator {
-            init(fn){
+            init(..., fn){
+                super.init(...);
                 this.fn = fn;
                 this.nextValue = nil;                     // Next value is evaluated ahead of time
                 this.exhausted = false;                   // Additional field to track whether exhausted
