@@ -1,0 +1,12 @@
+{
+    var sl = Slice(0, 5, nil);
+    print sl;
+
+    try {
+        var err = Slice(2.5, nil, -1);
+    } catch (e) {
+        print e;
+    }
+
+    print Slice(nil, nil, nil);
+}

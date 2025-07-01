@@ -186,6 +186,13 @@ ObjArray* newArray(){
     initValueArray(&array->data);
     return array;
 }
+ObjArraySlice* newSlice(Value start, Value end, Value step){
+    ObjArraySlice* slice = ALLOCATE_OBJ(ObjArraySlice, OBJ_ARRAY_SLICE);
+    slice->start = start;
+    slice->end = end;
+    slice->step = step;
+    return slice;
+}
 
 // OBJECT GENERAL METHODS
 
@@ -231,6 +238,15 @@ void printObject(Value value){
             }
             printf("]");
             break;
+        }
+        case OBJ_ARRAY_SLICE: {
+            ObjArraySlice* slice = AS_ARRAY_SLICE(value);
+            printf("Slice: ");
+            printValue(slice->start);
+            printf(", ");
+            printValue(slice->end);
+            printf(", ");
+            printValue(slice->step);
         }
         default: break;    // Unreachable.
     }

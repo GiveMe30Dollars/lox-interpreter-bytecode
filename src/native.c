@@ -52,10 +52,15 @@ Value typeNative(int argCount, Value* args){
                 sentinel = copyString("Array", 5);
                 break;
             }
+            case OBJ_ARRAY_SLICE: {
+                sentinel = copyString("Slice", 5);
+                break;
+            }
             default: ;    // Fallthrough
         }
     }
     if (sentinel != NULL){
+        // the sentinels must be in the STL.
         Value klass;
         tableGet(&vm.stl, OBJ_VAL(sentinel), &klass);
         return klass;
@@ -83,6 +88,11 @@ static inline void indexNotNumber(Value* args){
 static inline void indexOutOfRange(Value* args){
     ObjString* message = printToString("Index out of range.");
     writeException(args, OBJ_VAL(message));
+}
+
+// HELPERS
+static inline bool isWholeNumber(Value value){
+    return IS_NUMBER(value) && (floor(AS_NUMBER(value)) == AS_NUMBER(value));
 }
 
 
@@ -120,7 +130,15 @@ Value stringPrimitiveNative(int argCount, Value* args){
                 return OBJ_VAL(printToString("Exception: %s", AS_CSTRING(payloadString)));
             }
             case OBJ_ARRAY:
-                return OBJ_VAL(copyString("<Array instance>", 16));
+                return OBJ_VAL(copyString("<Array object>", 14));
+            case OBJ_ARRAY_SLICE: {
+                ObjArraySlice* slice = AS_ARRAY_SLICE(args[0]);
+                #define SLICE_COMPONENT(field) \
+                    AS_CSTRING(stringPrimitiveNative(1, &field))
+                return OBJ_VAL(printToString("Slice: %s, %s, %s", 
+                    SLICE_COMPONENT(slice->start), SLICE_COMPONENT(slice->end), SLICE_COMPONENT(slice->step) ));
+                #undef SLICE_COMPONENT
+            }
         }
     }
     return OBJ_VAL(copyString("", 0));
@@ -241,7 +259,7 @@ Value arrayInitNative(int argCount, Value* args){
     if (IS_NUMBER(args[0])){
         ObjArray* array = newArray();
         args[-1] = OBJ_VAL(array);
-        for (int i = 0; i < args[0]; i++){
+        for (int i = 0; i < AS_NUMBER(args[0]); i++){
             writeValueArray(&array->data, NIL_VAL());
         }
         return args[-1];
@@ -317,6 +335,25 @@ Value arrayLengthNative(int argCount, Value* args){
 }
 
 
+// SLICE SENTINEL METHODS
+
+Value sliceInitNative(int argCount, Value* args){
+    for (int i = 0; i < 3; i++){
+        if (IS_NIL(args[i])){
+            if (i == 2) args[2] = NUMBER_VAL(1);
+            continue;
+        } else if (!isWholeNumber(args[i])){
+            // Invalid argument
+            ObjString* payload = printToString("Argument '%d' must be either a whole number or 'nil'.", i);
+            writeException(args, OBJ_VAL(payload));
+            return EMPTY_VAL();
+        }
+    }
+    args[-1] = OBJ_VAL(newSlice(args[0], args[1], args[2]));
+    return args[-1];
+}
+
+
 // STL BUILD AND FREE
 
 ImportInfo buildSTL(){
@@ -352,7 +389,10 @@ ImportInfo buildSTL(){
             IMPORT_NATIVE("append", arrayAppendNative, 1),
             IMPORT_NATIVE("insert", arrayInsertNative, 2),
             IMPORT_NATIVE("delete", arrayDeleteNative, 1),
-            IMPORT_NATIVE("length", arrayLengthNative, 0)
+            IMPORT_NATIVE("length", arrayLengthNative, 0),
+
+        IMPORT_SENTINEL("Slice", 1),
+            IMPORT_NATIVE("init", sliceInitNative, 3)
     };
 
     ImportStruct* library = malloc(sizeof(lib));

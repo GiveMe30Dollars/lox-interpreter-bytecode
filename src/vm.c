@@ -203,6 +203,7 @@ void initVM(){
     stl();
 }
 void freeVM(){
+    freeTable(&vm.stl);
     freeTable(&vm.globals);
     freeTable(&vm.strings);
     vm.initString = NIL_VAL();

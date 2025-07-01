@@ -21,7 +21,8 @@ typedef enum {
     OBJ_INSTANCE,
     OBJ_BOUND_METHOD,    // <-- End of vanilla
     OBJ_EXCEPTION,
-    OBJ_ARRAY
+    OBJ_ARRAY,
+    OBJ_ARRAY_SLICE
 } ObjType;
 
 #ifdef OBJ_HEADER_COMPRESSION
@@ -188,15 +189,16 @@ typedef struct {
 } ObjArray;
 ObjArray* newArray();
 
-/*
+// ObjArraySlice is used for array slicing, and nothing else.
+// Start inclusive, end exclusive
 typedef struct {
     Obj obj;
     Value start;
     Value end;
     Value step;
 } ObjArraySlice;
-ObjArraySlice* newSlice();
-*/
+ObjArraySlice* newSlice(Value start, Value end, Value step);
+
 
 // OBJECT GENERAL FUNCTIONS
 void printFunction(ObjFunction* function);
@@ -213,6 +215,7 @@ void printObject(Value value);
 
 #define IS_EXCEPTION(value)    (isObjType(value, OBJ_EXCEPTION))
 #define IS_ARRAY(value)        (isObjType(value, OBJ_ARRAY))
+#define IS_ARRAY_SLICE(value)  (isObjType(value, OBJ_ARRAY_SLICE))
 
 static inline bool isObjType(Value value, ObjType type){
     return IS_OBJ(value) && (objType(AS_OBJ(value)) == type);
@@ -231,5 +234,6 @@ static inline bool isObjType(Value value, ObjType type){
 
 #define AS_EXCEPTION(value)    ((ObjException*)AS_OBJ(value))
 #define AS_ARRAY(value)        ((ObjArray*)AS_OBJ(value))
+#define AS_ARRAY_SLICE(value)  ((ObjArraySlice*)AS_OBJ(value))
 
 #endif
