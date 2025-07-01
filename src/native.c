@@ -98,6 +98,22 @@ static inline bool isWholeNumber(Value value){
 
 // STRING SENTINEL METHODS
 
+// defines idx as an integer if the value given is a whole number within the bounds of the array given.
+// otherwise, does error logging and returns -1 to signal an error.
+static int stringCheckIndex(Value* args, ObjString* str, Value target){
+    if (!IS_NUMBER(target) || floor(AS_NUMBER(target)) != AS_NUMBER(target)) {
+        indexNotNumber(args);
+        return -1;
+    }
+    int idx = (int)AS_NUMBER(target);
+    if (idx < 0) idx += str->length;
+    if (idx >= str->length || idx < 0){
+        indexOutOfRange(args);
+        return -1;
+    }
+    return idx;
+}
+
 Value stringPrimitiveNative(int argCount, Value* args){
     Value value = args[0];
     if (IS_EMPTY(value)){
@@ -190,17 +206,47 @@ Value stringAddNative(int argCount, Value* args){
 }
 Value stringGetNative(int argCount, Value* args){
     ObjString* str = AS_STRING(args[-1]);
-    if (!IS_NUMBER(args[0]) || floor(AS_NUMBER(args[0])) != AS_NUMBER(args[0])) {
-        indexNotNumber(args);
+    if (IS_NUMBER(args[0])){
+        int idx = stringCheckIndex(args, str, args[0]);
+        return OBJ_VAL(copyString(&str->chars[idx], 1));
+    }
+    else if (IS_ARRAY_SLICE(args[0])){
+        ObjArraySlice* slice = AS_ARRAY_SLICE(args[0]);
+        int step = (int)AS_NUMBER(slice->step);
+        int start;
+        if (IS_NIL(slice->start)){
+            start = step > 0 ? 0 : str->length - 1;
+        } else if ((start = stringCheckIndex(args, str, slice->start)) == -1){
+            return EMPTY_VAL();
+            // if start is assigned to and is not equal to error -1, then proceed
+        }
+        int end;
+        if (IS_NIL(slice->end)){
+            end = step > 0 ? str->length : -1;
+        } else if ((end = stringCheckIndex(args, str, slice->end)) == -1){
+            return EMPTY_VAL();
+            // if end is assigned to and is not equal to error -1, then proceed
+        }
+
+        int bufferLength = (end - start) / step;
+        char* buffer = ALLOCATE(char, bufferLength + 1);
+        int j = 0;
+        for (int i = start; (step > 0 ? i < end : i > end); i += step){
+            buffer[j++] = str->chars[i];
+        }
+        buffer[bufferLength] = '\0';
+        return OBJ_VAL(takeString(buffer, bufferLength));
+    }
+    else {
+        ObjString* payload = printToString("Expected an integer index or a slice object.");
+        writeException(args, OBJ_VAL(payload));
         return EMPTY_VAL();
     }
-    int idx = (int)AS_NUMBER(args[0]);
-    if (idx < 0) idx += str->length;
-    if (idx >= str->length || idx < 0){
-        indexOutOfRange(args);
-        return EMPTY_VAL();
-    }
-    return OBJ_VAL(copyString(&str->chars[idx], 1));
+}
+Value stringSetNative(int argCount, Value* args){
+    ObjString* payload = printToString("Strings are immutable. Consider constructing an array using 'Array(str)' for editing.");
+    writeException(args, OBJ_VAL(payload));
+    return EMPTY_VAL();
 }
 Value stringLengthNative(int argCount, Value* args){
     return NUMBER_VAL(AS_STRING(args[-1])->length);
@@ -262,6 +308,20 @@ Value arrayInitNative(int argCount, Value* args){
         for (int i = 0; i < AS_NUMBER(args[0]); i++){
             writeValueArray(&array->data, NIL_VAL());
         }
+        return args[-1];
+    }
+    if (IS_STRING(args[0])){
+        ObjString* str = AS_STRING(args[0]);
+        ObjArray* array = newArray();
+        args[-1] = OBJ_VAL(array);
+
+        while (array->data.capacity < str->length)
+            array->data.capacity = GROW_CAPACITY(array->data.capacity);
+        array->data.values = GROW_ARRAY(Value, array->data.values, 0, array->data.capacity);
+
+        for (int i = 0; i < str->length; i++)
+            writeValueArray(&array->data, OBJ_VAL(copyString(str->chars + i, 1)));
+
         return args[-1];
     }
     return EMPTY_VAL();
@@ -341,9 +401,9 @@ Value arraySetNative(int argCount, Value* args){
             // if end is assigned to and is not equal to error -1, then proceed
         }
 
-        int sliceLength = (int)floor((double)(end - start) / step);
+        int sliceLength = (end - start) / step;
         if (sliceLength != source->data.count){
-            ObjString* payload = printToString("Expected array of length %d for slice but got length %d.", sliceLength, source->data.count);
+            ObjString* payload = printToString("Expected array of length %d for this slice but got length %d.", sliceLength, source->data.count);
             writeException(args, OBJ_VAL(payload));
             return EMPTY_VAL();
         }
@@ -467,6 +527,7 @@ ImportInfo buildSTL(){
             IMPORT_STATIC("concatenate", concatenateNative, -1),
             IMPORT_NATIVE("add", stringAddNative, 1),
             IMPORT_NATIVE("get", stringGetNative, 1),
+            IMPORT_NATIVE("set", stringSetNative, 2),
             IMPORT_NATIVE("length", stringLengthNative, 0),
 
         IMPORT_SENTINEL("Function", 1),

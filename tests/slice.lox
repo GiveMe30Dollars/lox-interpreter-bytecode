@@ -6,7 +6,7 @@
 
     try {
         var err = Slice(2.5, nil, -1);
-    } catch (e) {
+    } catch(e) {
         print e;
     }
 
@@ -25,4 +25,19 @@
 
     arr[::2] = ["a", "b", "c", "d", "e"];
     print arr;
+}
+
+{
+    var str = "Hello World!";
+    print str[::-1];
+    try {
+        str[4] = ",";
+    } catch(e) {
+        print e;
+    }
+
+    var editable = Array(str);
+    editable[4] = "," ;
+    var newStr = editable.reduce(fun(m,n){ "${m}${n}" });
+    print newStr;
 }
