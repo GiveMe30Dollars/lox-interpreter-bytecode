@@ -781,10 +781,45 @@ static void array(bool canAssign){
 static void subscript(bool canAssign){
     uint8_t idxGet = syntheticConstant("get");
     uint8_t idxSet = syntheticConstant("set");
+    uint8_t idxSlice = syntheticConstant("Slice");
+    uint8_t idxRaw = syntheticConstant("@raw");
 
     // left bracket already consumed
-    parsePrecedence(PREC_CONDITIONAL);
+    // emit Slice class onto stack for @raw static invocation
+    emitConstant(OP_GET_STL, idxSlice);
+
+    // slice start clause / expression
+    int argCount = 1;
+    if (check(TOKEN_COLON)){
+        // empty start field
+        emitByte(OP_NIL);
+    } else {
+        expression();
+    }
+    // slice end clause
+    if (match(TOKEN_COLON)){
+        argCount++;
+        if (check(TOKEN_COLON) || check(TOKEN_RIGHT_BRACKET)){
+            // empty end field
+            emitByte(OP_NIL);
+        } else {
+            expression();
+        }
+    }
+    // slice step clause
+    if (match(TOKEN_COLON)){
+        argCount++;
+        if (check(TOKEN_RIGHT_BRACKET)){
+            // empty step field
+            emitByte(OP_NIL);
+        } else {
+            expression();
+        }
+    }
+
     consume(TOKEN_RIGHT_BRACKET, "Expect ']' after subscript.");
+    emitConstant(OP_INVOKE, idxRaw);
+    emitByte(argCount);
 
     if (canAssign){
         int assignInstruction = -1;

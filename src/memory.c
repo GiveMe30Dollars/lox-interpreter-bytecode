@@ -95,6 +95,10 @@ void freeObject(Obj* object){
             FREE(ObjArray, object);
             break;
         }
+        case OBJ_ARRAY_SLICE: {
+            FREE(ObjArraySlice, object);
+            break;
+        }
     }
 }
 
@@ -228,6 +232,10 @@ static void blackenObject(Obj* object){
             markArray(&array->data);
             break;
         }
+        case OBJ_ARRAY_SLICE:
+            // all slice fields are primitive values, no need to trace through them
+            break;
+        
     }
 }
 static void traceReferences(){

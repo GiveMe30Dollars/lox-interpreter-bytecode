@@ -226,7 +226,7 @@ Value exceptionPayloadNative(int argCount, Value* args){
 
 // defines idx as an integer if the value given is a whole number within the bounds of the array given.
 // otherwise, does error logging and returns -1 to signal an error.
-static int checkIndex(Value* args, ObjArray* array, Value target){
+static int arrayCheckIndex(Value* args, ObjArray* array, Value target){
     if (!IS_NUMBER(target) || floor(AS_NUMBER(target)) != AS_NUMBER(target)) {
         indexNotNumber(args);
         return -1;
@@ -268,18 +268,97 @@ Value arrayInitNative(int argCount, Value* args){
 }
 Value arrayGetNative(int argCount, Value* args){
     ObjArray* array = AS_ARRAY(args[-1]);
-    int idx = checkIndex(args, array, args[0]);
-    if (idx == -1) return EMPTY_VAL();
+    if (IS_NUMBER(args[0])){
+        int idx = arrayCheckIndex(args, array, args[0]);
+        if (idx == -1) return EMPTY_VAL();
+        return array->data.values[idx];
+    }
+    else if (IS_ARRAY_SLICE(args[0])){
+        // array slicing get: parse slicing information
+        ObjArraySlice* slice = AS_ARRAY_SLICE(args[0]);
+        int step = (int)AS_NUMBER(slice->step);
+        int start;
+        if (IS_NIL(slice->start)){
+            start = step > 0 ? 0 : array->data.count;
+        } else if ((start = arrayCheckIndex(args, array, slice->start)) == -1){
+            return EMPTY_VAL();
+            // if start is assigned to and is not equal to error -1, then proceed
+        }
+        int end;
+        if (IS_NIL(slice->end)){
+            end = step > 0 ? array->data.count : -1;
+        } else if ((end = arrayCheckIndex(args, array, slice->end)) == -1){
+            return EMPTY_VAL();
+            // if end is assigned to and is not equal to error -1, then proceed
+        }
 
-    return array->data.values[idx];
+        // args[0] is now available as a local slot for the new array to anchor to the VM
+        ObjArray* result = newArray();
+        args[0] = OBJ_VAL(result);
+        for (int i = start; (step > 0 ? (i < end) : (i > end)); i += step){
+            writeValueArray(&result->data, array->data.values[i]);
+        }
+        return args[0];
+    }
+    else {
+        ObjString* payload = printToString("Expected an integer index or a slice object.");
+        writeException(args, OBJ_VAL(payload));
+        return EMPTY_VAL();
+    }
 }
 Value arraySetNative(int argCount, Value* args){
     ObjArray* array = AS_ARRAY(args[-1]);
-    int idx = checkIndex(args, array, args[0]);
-    if (idx == -1) return EMPTY_VAL();
+    if (IS_NUMBER(args[0])){
+        int idx = arrayCheckIndex(args, array, args[0]);
+        if (idx == -1) return EMPTY_VAL();
+        array->data.values[idx] = args[1];
+        return args[1];
+    }
+    else if (IS_ARRAY_SLICE(args[0])){
+        // ensure object to set is an array
+        if (!IS_ARRAY(args[1])){
+            ObjString* payload = printToString("Expected array object for setting the values of an array slice.");
+            writeException(args, OBJ_VAL(payload));
+            return EMPTY_VAL();
+        }
+        ObjArray* source = AS_ARRAY(args[1]);
+        
+        // parse slicing information
+        ObjArraySlice* slice = AS_ARRAY_SLICE(args[0]);
+        int step = (int)AS_NUMBER(slice->step);
+        int start;
+        if (IS_NIL(slice->start)){
+            start = step > 0 ? 0 : array->data.count;
+        } else if ((start = arrayCheckIndex(args, array, slice->start)) == -1){
+            return EMPTY_VAL();
+            // if start is assigned to and is not equal to error -1, then proceed
+        }
+        int end;
+        if (IS_NIL(slice->end)){
+            end = step > 0 ? array->data.count : -1;
+        } else if ((end = arrayCheckIndex(args, array, slice->end)) == -1){
+            return EMPTY_VAL();
+            // if end is assigned to and is not equal to error -1, then proceed
+        }
 
-    array->data.values[idx] = args[1];
-    return args[1];
+        int sliceLength = (int)floor((double)(end - start) / step);
+        if (sliceLength != source->data.count){
+            ObjString* payload = printToString("Expected array of length %d for slice but got length %d.", sliceLength, source->data.count);
+            writeException(args, OBJ_VAL(payload));
+            return EMPTY_VAL();
+        }
+
+        int j = 0;
+        for (int i = start; (step > 0 ? (i < end) : (i > end)); i += step){
+            array->data.values[i] = source->data.values[j++];
+        }
+        return args[1];
+    }
+    else {
+        ObjString* payload = printToString("Expected an integer index or a slice object.");
+        writeException(args, OBJ_VAL(payload));
+        return EMPTY_VAL();
+    }
 }
 Value arrayAppendNative(int argCount, Value* args){
     ObjArray* array = AS_ARRAY(args[-1]);
@@ -317,7 +396,7 @@ Value arrayInsertNative(int argCount, Value* args){
 }
 Value arrayDeleteNative(int argCount, Value* args){
     ObjArray* array = AS_ARRAY(args[-1]);
-    int idx = checkIndex(args, array, args[0]);
+    int idx = arrayCheckIndex(args, array, args[0]);
     if (idx == -1) return EMPTY_VAL();
 
     if (idx == array->data.count - 1){
@@ -338,12 +417,14 @@ Value arrayLengthNative(int argCount, Value* args){
 // SLICE SENTINEL METHODS
 
 Value sliceInitNative(int argCount, Value* args){
+    // check that arguments are valid
     for (int i = 0; i < 3; i++){
         if (IS_NIL(args[i])){
+            // nil is accepted for start and end, is converted to 1 for step
             if (i == 2) args[2] = NUMBER_VAL(1);
             continue;
         } else if (!isWholeNumber(args[i])){
-            // Invalid argument
+            // Argument is something other than a whole number or nil
             ObjString* payload = printToString("Argument '%d' must be either a whole number or 'nil'.", i);
             writeException(args, OBJ_VAL(payload));
             return EMPTY_VAL();
@@ -351,6 +432,20 @@ Value sliceInitNative(int argCount, Value* args){
     }
     args[-1] = OBJ_VAL(newSlice(args[0], args[1], args[2]));
     return args[-1];
+}
+Value sliceRawNative(int argCount, Value* args){
+    switch (argCount){
+        case 1: return args[0];
+        case 2: {
+            push(NIL_VAL());
+            Value result = sliceInitNative(3, args);
+            pop();
+            return result;
+        }
+        case 3: return sliceInitNative(3, args);
+        default:  // Unreachable
+            return EMPTY_VAL();
+    }
 }
 
 
@@ -391,8 +486,9 @@ ImportInfo buildSTL(){
             IMPORT_NATIVE("delete", arrayDeleteNative, 1),
             IMPORT_NATIVE("length", arrayLengthNative, 0),
 
-        IMPORT_SENTINEL("Slice", 1),
-            IMPORT_NATIVE("init", sliceInitNative, 3)
+        IMPORT_SENTINEL("Slice", 2),
+            IMPORT_STATIC("@raw", sliceRawNative, -1),
+            IMPORT_NATIVE("init", sliceInitNative, 3),
     };
 
     ImportStruct* library = malloc(sizeof(lib));

@@ -1,5 +1,7 @@
+// This is a test for slice objects and array slicing for getting and setting
+
 {
-    var sl = Slice(0, 5, nil);
+    var sl = Slice(0, 5, 1);
     print sl;
 
     try {
@@ -8,5 +10,19 @@
         print e;
     }
 
-    print Slice(nil, nil, nil);
+    print Slice(nil, nil, 1);
+}
+
+{
+    var arr = [0,1,2,3,4,5,6,7,8,9];
+    print arr.get(Slice(2, 6, 1));
+    print arr[Slice(3, -1, -1)];
+    print arr[Slice(3, -1, 1)];
+
+    print arr[:5];
+    print arr[5:];
+    print arr[::2];
+
+    arr[::2] = ["a", "b", "c", "d", "e"];
+    print arr;
 }

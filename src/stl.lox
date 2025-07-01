@@ -1,6 +1,6 @@
 
 class Array {
-    
+    /*
     toString(){
         var str = "[";
         for (var i = 0; i < this.length(); i += 1){
@@ -8,7 +8,7 @@ class Array {
         }
         str += "]";
         return str;
-    }
+    }*/
 
     map(fn){
         if (type(fn) != Function)
@@ -24,7 +24,7 @@ class Array {
         return result;
     }
     copy(){
-        return this.map(fun (n){n});
+        return this.map(fun(n){n});
     }
 
     filter(fn){
