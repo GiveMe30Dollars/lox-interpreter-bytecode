@@ -6,7 +6,7 @@ This seems simple, right? It is, it's just that we have to wade through some sem
 
 I thought that I was certain that I wanted to borrow Python's syntax for array slicing. For the way the compiler is currently set up, it was easier to parse Python-style `arr[start:stop:step]` (even if it is a bit of a pain; refer to next section) rather than Perl-style `arr[start..end]`. The latter would necessitate adding a new token `TOKEN_DOT_DOT` to disambugate from `TOKEN_DOT`, especially when you start using property getters in the expression for the slice:
 
-```
+```c++
 var arr = /* ... */
 var instance = SomeClass();
 
@@ -124,7 +124,7 @@ print arr[2:-2:-1];
 
 It makes some intuitive sense to "wrap around" and get `[2,1,0,9]`, but we'll have to add conditional logic so that `arr[2:-2:1]` evaluates correctly to `[2,3,4,5,6,7]`.
 
-There's a lot of edge-case hell that arises from allowing such operations, especially with assuming defaults; should `arr[2,-2]` correspond to `arr[2:-2:1]` or `arr[2:-2:-1]`? Either of these could be what the user expects, and we can't have both. Which, then? How about slices beginning from a negative index and ending in a positive one?
+There's a lot of edge-case hell that arises from allowing such operations, especially with assuming defaults; should `arr[2:-2]` correspond to `arr[2:-2:1]` or `arr[2:-2:-1]`? Either of these could be what the user expects, and we can't have both. Which, then? How about slices beginning from a negative index and ending in a positive one?
 
 Keep in mind that while negative indexing is supported in Lox, *circular* indexing is not:
 

@@ -25,7 +25,7 @@ arr = [0,1,2,3,4,5,6,7,8,9]
 target = ["zero", "two", "four", "six", "eight"]
 // These two lines are equivalent
 arr[::2] = target;
-arr.set(Slice(None, None, 2), target);
+arr.set(Slice(nil, nil, 2), target);
 ```
 
 A slice object accepts three arguments corresponding to `start : stop : step`, which must be whole numbers or `nil`. Additionally, the value of `step` must be non-zero, with `nil` corresponding to a default value of 1.
