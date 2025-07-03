@@ -22,7 +22,8 @@ typedef enum {
     OBJ_BOUND_METHOD,    // <-- End of vanilla
     OBJ_EXCEPTION,
     OBJ_ARRAY,
-    OBJ_ARRAY_SLICE
+    OBJ_ARRAY_SLICE,
+    OBJ_HASHMAP
 } ObjType;
 
 #ifdef OBJ_HEADER_COMPRESSION
@@ -200,6 +201,14 @@ typedef struct {
 ObjArraySlice* newSlice(Value start, Value end, Value step);
 
 
+// ObjHashmap exposes the HashTable struct to a Lox end-user
+typedef struct {
+    Obj obj;
+    HashTable data;
+} ObjHashmap;
+ObjHashmap* newHashmap();
+
+
 // OBJECT GENERAL FUNCTIONS
 void printFunction(ObjFunction* function);
 void printObject(Value value);
@@ -216,6 +225,7 @@ void printObject(Value value);
 #define IS_EXCEPTION(value)    (isObjType(value, OBJ_EXCEPTION))
 #define IS_ARRAY(value)        (isObjType(value, OBJ_ARRAY))
 #define IS_ARRAY_SLICE(value)  (isObjType(value, OBJ_ARRAY_SLICE))
+#define IS_HASHMAP(value)      (isObjType(value, OBJ_HASHMAP))
 
 static inline bool isObjType(Value value, ObjType type){
     return IS_OBJ(value) && (objType(AS_OBJ(value)) == type);
@@ -235,5 +245,6 @@ static inline bool isObjType(Value value, ObjType type){
 #define AS_EXCEPTION(value)    ((ObjException*)AS_OBJ(value))
 #define AS_ARRAY(value)        ((ObjArray*)AS_OBJ(value))
 #define AS_ARRAY_SLICE(value)  ((ObjArraySlice*)AS_OBJ(value))
+#define AS_HASHMAP(value)      ((ObjHashmap*)AS_OBJ(value))
 
 #endif

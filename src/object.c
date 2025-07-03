@@ -194,6 +194,13 @@ ObjArraySlice* newSlice(Value start, Value end, Value step){
     return slice;
 }
 
+// HASHMAP-RELATED METHODS
+ObjHashmap* newHashmap(){
+    ObjHashmap* hashmap = ALLOCATE_OBJ(ObjHashmap, OBJ_HASHMAP);
+    initTable(&hashmap->data);
+    return hashmap;
+}
+
 // OBJECT GENERAL METHODS
 
 void printFunction(ObjFunction* function){
@@ -247,6 +254,20 @@ void printObject(Value value){
             printValue(slice->end);
             printf(", ");
             printValue(slice->step);
+        }
+        case OBJ_HASHMAP: {
+            ObjHashmap* hashmap = AS_HASHMAP(value);
+            printf("{ ");
+            bool firstItem = true;
+            for (int i = 0; i < hashmap->data.capacity; i++){
+                if (hashmap->data.entries[i].key == EMPTY_VAL()) continue;
+                if (firstItem) firstItem = false;
+                else printf(", ");
+                printValue(hashmap->data.entries[i].key);
+                printf(":");
+                printValue(hashmap->data.entries[i].value);
+            }
+            printf(" }");
         }
         default: break;    // Unreachable.
     }

@@ -99,6 +99,12 @@ void freeObject(Obj* object){
             FREE(ObjArraySlice, object);
             break;
         }
+        case OBJ_HASHMAP: {
+            ObjHashmap* hashmap = (ObjHashmap*)object;
+            freeTable(&hashmap->data);
+            FREE(ObjHashmap, hashmap);
+            break;
+        }
     }
 }
 
@@ -235,6 +241,12 @@ static void blackenObject(Obj* object){
         case OBJ_ARRAY_SLICE:
             // all slice fields are primitive values, no need to trace through them
             break;
+
+        case OBJ_HASHMAP: {
+            ObjHashmap* hashmap = (ObjHashmap*)object;
+            markTable(&hashmap->data);
+            break;
+        }
         
     }
 }

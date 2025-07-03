@@ -56,6 +56,9 @@ Value typeNative(int argCount, Value* args){
                 sentinel = copyString("Slice", 5);
                 break;
             }
+            case OBJ_HASHMAP: {
+                sentinel = copyString("Hashmap", 7);
+            }
             default: ;    // Fallthrough
         }
     }
@@ -147,14 +150,10 @@ Value stringPrimitiveNative(int argCount, Value* args){
             }
             case OBJ_ARRAY:
                 return OBJ_VAL(copyString("<Array object>", 14));
-            case OBJ_ARRAY_SLICE: {
-                ObjArraySlice* slice = AS_ARRAY_SLICE(args[0]);
-                #define SLICE_COMPONENT(field) \
-                    AS_CSTRING(stringPrimitiveNative(1, &field))
-                return OBJ_VAL(printToString("Slice: %s, %s, %s", 
-                    SLICE_COMPONENT(slice->start), SLICE_COMPONENT(slice->end), SLICE_COMPONENT(slice->step) ));
-                #undef SLICE_COMPONENT
-            }
+            case OBJ_ARRAY_SLICE:
+                return OBJ_VAL(copyString("<Slice object>", 14));
+            case OBJ_HASHMAP:
+                return OBJ_VAL(copyString("<Hashmap object>", 16));
         }
     }
     return OBJ_VAL(copyString("", 0));
@@ -515,6 +514,48 @@ Value sliceRawNative(int argCount, Value* args){
 }
 
 
+// HASHMAP SENTINEL METHODS
+Value hashmapInitNative(int argCount, Value* args){
+    ObjHashmap* hashmap = newHashmap();
+    args[-1] = OBJ_VAL(hashmap);
+    return args[-1];
+}
+Value hashmapRawNative(int argCount, Value* args){
+    ObjHashmap* hashmap = newHashmap();
+    args[-1] = OBJ_VAL(hashmap);
+    for (int i = 0; i < argCount; i += 2){
+        tableSet(&hashmap->data, args[i], args[i+1]);
+    }
+    return args[-1];
+}
+Value hashmapHasNative(int argCount, Value* args){
+    ObjHashmap* hashmap = AS_HASHMAP(args[-1]);
+    Value temp;
+    if (tableGet(&hashmap->data, args[0], &temp))
+        return BOOL_VAL(true);
+    else return BOOL_VAL(false);
+}
+Value hashmapGetNative(int argCount, Value* args){
+    ObjHashmap* hashmap = AS_HASHMAP(args[-1]);
+    Value output;
+    if (tableGet(&hashmap->data, args[0], &output))
+        return output;
+    else {
+        Value keyToString = stringPrimitiveNative(1, &args[0]);
+        push(keyToString);
+        ObjString* payload = printToString("Key '%s' not found.", AS_CSTRING(keyToString));
+        writeException(args, OBJ_VAL(payload));
+        pop();
+        return EMPTY_VAL();
+    }
+}
+Value hashmapSetNative(int argCount, Value* args){
+    ObjHashmap* hashmap = AS_HASHMAP(args[-1]);
+    tableSet(&hashmap->data, args[0], args[1]);
+    return args[1];
+}
+
+
 // STL BUILD AND FREE
 
 ImportInfo buildSTL(){
@@ -556,6 +597,13 @@ ImportInfo buildSTL(){
         IMPORT_SENTINEL("Slice", 2),
             IMPORT_STATIC("@raw", sliceRawNative, -1),
             IMPORT_NATIVE("init", sliceInitNative, 3),
+
+        IMPORT_SENTINEL("Hashmap", 5),
+            IMPORT_STATIC("@raw", hashmapRawNative, -1),
+            IMPORT_NATIVE("init", hashmapInitNative, -1),
+            IMPORT_NATIVE("has", hashmapHasNative, 1),
+            IMPORT_NATIVE("get", hashmapGetNative, 1),
+            IMPORT_NATIVE("set", hashmapSetNative, 2)
     };
 
     ImportStruct* library = malloc(sizeof(lib));

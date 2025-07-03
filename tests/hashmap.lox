@@ -1,0 +1,7 @@
+// Test for hash tables as first-class Lox objects
+{
+    var hashmap = Hashmap();
+    hashmap.set("one", 1);
+    print hashmap.has("two");
+    print hashmap.get("one");
+}
