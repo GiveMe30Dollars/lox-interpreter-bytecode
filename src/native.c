@@ -483,7 +483,13 @@ Value sliceInitNative(int argCount, Value* args){
             // nil is accepted for start and end, is converted to 1 for step
             if (i == 2) args[2] = NUMBER_VAL(1);
             continue;
-        } else if (!isWholeNumber(args[i])){
+        } else if (isWholeNumber(args[i])){
+            if ((i == 2) && (AS_NUMBER(args[2]) == 0)){
+                ObjString* payload = printToString("Step size must be non-zero.");
+                writeException(args, OBJ_VAL(payload));
+                return EMPTY_VAL();
+            } else continue;
+        } else {
             // Argument is something other than a whole number or nil
             ObjString* payload = printToString("Argument '%d' must be either a whole number or 'nil'.", i);
             writeException(args, OBJ_VAL(payload));
