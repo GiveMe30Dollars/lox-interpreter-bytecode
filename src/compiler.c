@@ -1178,6 +1178,7 @@ static void declaration(){
     } else {
         statement();
     }
+    if (parser.panic) synchronize();
 }
 
 
