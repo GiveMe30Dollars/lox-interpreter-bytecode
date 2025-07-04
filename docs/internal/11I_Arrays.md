@@ -12,7 +12,7 @@ You'll see in a moment that it barely matters. The bulk of array operations inte
 
 ## Array Native Methods
 
-`Array` is a sentinel class, since the runtime representation of arrays is not a Sulfox instance but an `ObjArray`. There are currently four native functions implemented:
+`Array` is a synth class, since the runtime representation of arrays is not a Sulfox instance but an `ObjArray`. There are currently four native functions implemented:
 
 - `init`: initializer of arity 1. Returns an empty array of `args[0]` length.
 - `@raw`: variadic static method. Returns an array containing all arguments passes to it.

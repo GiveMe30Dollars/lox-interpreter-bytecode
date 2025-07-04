@@ -142,7 +142,7 @@ I'll be copying Python's semantics regarding this matter: `arr[2:-2:-1]` is equi
 
 ## What of the Actual Implementation?
 
-It's in the `get` and `set` native methods for the Array sentinel class, and in Nativeland they're named `arrayGetInit` and `arraySetInit` in the file `native.c`. Go on, have a look.
+It's in the `get` and `set` native methods for the Array synth class, and in Nativeland they're named `arrayGetInit` and `arraySetInit` in the file `native.c`. Go on, have a look.
 
 A lot of the changes are mostly mechanical plumbing for the methods to accept and evaluate slice objects, pulling out the information in them and iterating through the array for reading/writing. There is nothing new there that you haven't already seen, and honestly I don't like retreading familiar ground when it comes to these internal write-ups. They're mostly for future me anyways.
 

@@ -14,7 +14,7 @@ Consider how someone would implement `Array.map(fn)`: for every element in the a
 
 *Aside: Python implements `map` as a general function for any object implementing `Iterable`. This should've been the way to go to be honest, though whether the Array iterator needs to be native is... subjective.*
 
-Native functions are (nearly always) *viral*. If a native function has implementation details that require the use of an object, that object would usually need to be native too. For example, a `Slice` object (that's what enables Python's array slicing) has three fields, and no additional methods. It could *easily* be a Lox class. Yet, because it's used in the Array's `get` method, it would need to be implemented as a sentinel class corresponding to a primitive. Another `Obj` type that also needs boilerplate code for initializing, freeing and GC tracing.
+Native functions are (nearly always) *viral*. If a native function has implementation details that require the use of an object, that object would usually need to be native too. For example, a `Slice` object (that's what enables Python's array slicing) has three fields, and no additional methods. It could *easily* be a Lox class. Yet, because it's used in the Array's `get` method, it would need to be implemented as a synth class corresponding to a primitive. Another `Obj` type that also needs boilerplate code for initializing, freeing and GC tracing.
 
 This is annoying. A lot of the time the tedious parts end up being manually managing the VM, because it can't do so itself when a native function is called.
 
@@ -36,9 +36,9 @@ Of course, this would be naturally slower than just natively implementing someth
 
 This is mainly used in `OP_PRINT` to check for the existence of a `toString` method, which is optionally called if it does exist. The binary operators do not do this as not defining the corresponding method makes it a runtime error to use said operator.
 
-## Prying Open Sentinel Classes
+## Prying Open Synth Classes
 
-`stl.lox` is a Sulfox file that contains method implementations for the sentinel classes, particularly for Arrays as of writing.
+`stl.lox` is a Sulfox file that contains method implementations for the synth classes, particularly for Arrays as of writing.
 
 *Update: after christening my variant as Sulfox, you might question why I didn't change the file extension name as well. The answer is that it's not important to me, Sulfox is a superset of Lox, and the only person currently writing Sulfox is also the person writing the Sulfox compiler.*
 
@@ -49,6 +49,6 @@ Yes, you aren't supposed to be able to pry open a class after defining it (which
 This flag changes the behaviour of the VM in several ways:
 
 - Getting and setting global variables reads and writes to `vm.stl` instead of `vm.globals`.
-- If the identifier of an existing sentinel class is used in a class declaration, we fetch the existing class object rather than defining a new one.
+- If the identifier of an existing synth class is used in a class declaration, we fetch the existing class object rather than defining a new one.
 
-This allows me to add sentinel methods that would be otherwise painful to do, such as those higher-order array methods.
+This allows me to add synth methods that would be otherwise painful to do, such as those higher-order array methods.
