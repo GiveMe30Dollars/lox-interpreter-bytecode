@@ -1,6 +1,6 @@
 # 13I: Multiple Inheritance
 
-The reason I needed container classes (`ObjArray` specifically and no others) in Lox. I'm not sure if this approach is clever or dumb. You be the judge of that.
+The reason I needed container classes (`ObjArray` specifically and no others) in Sulfox. I'm not sure if this approach is clever or dumb. You be the judge of that.
 
 ## The Syntax
 

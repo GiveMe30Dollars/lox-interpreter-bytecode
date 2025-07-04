@@ -1,8 +1,8 @@
-# 15I: STL Interfacing Between Lox and C
+# 15I: STL Interfacing Between Sulfox and C
 
 I'm beginning to realise that writing an STL is ***hard.***
 
-I won't sugarcoat it: this is probably one of the hackier things I did for Lox, and it's... serviceable? I wouldn't expect *actual* language to be structured like this (I'd probably be horrified if they did), but for a first interpreter this is the best I can muster.
+I won't sugarcoat it: this is probably one of the hackier things I did for Sulfox, and it's... serviceable? I wouldn't expect *actual* language to be structured like this (I'd probably be horrified if they did), but for a first interpreter this is the best I can muster.
 
 ## Native Functions are Kinda Limited, Actually
 
@@ -24,7 +24,7 @@ Not all of these problems can be solved. Here are the mitigations I found for so
 
 A native function can rearrange its slots to match the call signature of a non-native method. Then, it call's `callValue` or `invoke` for either a non-native function call or a non-native method invocation. Then, it returns the flag `<empty>`.
 
-The flag used to unconditionally signal a runtime exception, in which case `throwValue` is called. Now, we cache the call frame count before calling the native method. If the call stack changed *and* the flag is returned, we treat it as a native function *forfeiting* control to a non-native function. We return success on the call. `run` will load the new call frame in and we continue execution from there. It's basically a tail call (though Lox currently doesn't have that).
+The flag used to unconditionally signal a runtime exception, in which case `throwValue` is called. Now, we cache the call frame count before calling the native method. If the call stack changed *and* the flag is returned, we treat it as a native function *forfeiting* control to a non-native function. We return success on the call. `run` will load the new call frame in and we continue execution from there. It's basically a tail call (though Sulfox currently doesn't have that).
 
 For this reason, we can only forfeit control to one native function. This is what I do to overload the binary operators for non-numbers, as well as the `OP_PRINT` instruction and `String()` constructor, which instead calls an object's `toString()` method if it has one. In the case of `OP_PRINT`, we can roll back the instruction pointer so that the resultant string is *then* printed.
 
@@ -38,7 +38,9 @@ This is mainly used in `OP_PRINT` to check for the existence of a `toString` met
 
 ## Prying Open Sentinel Classes
 
-`stl.lox` is a Lox file that contains method implementations for the sentinel classes, particularly for Arrays as of writing.
+`stl.lox` is a Sulfox file that contains method implementations for the sentinel classes, particularly for Arrays as of writing.
+
+*Update: after christening my variant as Sulfox, you might question why I didn't change the file extension name as well. The answer is that it's not important to me, Sulfox is a superset of Lox, and the only person currently writing Sulfox is also the person writing the Sulfox compiler.*
 
 Yes, you aren't supposed to be able to pry open a class after defining it (which we do by loading native methods into it during the native STL import). I modified the VM runtime to allow this.
 

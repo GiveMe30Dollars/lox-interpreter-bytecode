@@ -1,8 +1,8 @@
 # 11I: Arrays
 
-This marks the first unique addition to my Lox since the completion of the book! Rejoice!
+This marks the first unique addition to Sulfox since the completion of the book! Rejoice!
 
-Nystrom himself has commented that [arrays are the sole remaining addition to get other container types up and running](https://github.com/munificent/craftinginterpreters/blob/master/note/answers/chapter13_inheritance/3.md), so this is a pretty significant addition to Lox.
+Nystrom himself has commented that [arrays are the sole remaining addition to get other container types up and running](https://github.com/munificent/craftinginterpreters/blob/master/note/answers/chapter13_inheritance/3.md), so this is a pretty significant addition to Sulfox.
 
 ## Object Representation of Arrays
 
@@ -12,7 +12,7 @@ You'll see in a moment that it barely matters. The bulk of array operations inte
 
 ## Array Native Methods
 
-`Array` is a sentinel class, since the runtime representation of arrays is not a Lox instance but an `ObjArray`. There are currently four native functions implemented:
+`Array` is a sentinel class, since the runtime representation of arrays is not a Sulfox instance but an `ObjArray`. There are currently four native functions implemented:
 
 - `init`: initializer of arity 1. Returns an empty array of `args[0]` length.
 - `@raw`: variadic static method. Returns an array containing all arguments passes to it.
@@ -35,11 +35,11 @@ I'm not as diciplined as Nystrom. I used `Array` as a variadic constructor until
 
 With all that said, parsing is easy now. `[` now has a prefix rule that evaluates all of its elements (until it finds a matching `]`), at which point `@raw` is invoked.
 
-The reason why `@raw` has an at-sign in the beginning is simple: I don't want end-users to be able to access this function. The parser does not recognise the at-sign as a valid character, and thus no Lox code can actually parse to the identifier `@raw`. We do not have such constraints in the compiler and can hardcode a `@raw` identifier into the parsing logic of functions. 
+The reason why `@raw` has an at-sign in the beginning is simple: I don't want end-users to be able to access this function. The parser does not recognise the at-sign as a valid character, and thus no Sulfox code can actually parse to the identifier `@raw`. We do not have such constraints in the compiler and can hardcode a `@raw` identifier into the parsing logic of functions. This basically functions as an "`OP_BUILD_ARRAY`" opcode, without the opcode. Neat!
 
 ## Subscript Notation
 
-Syntactic sugar to `get` and `set` native method invocations. 
+Syntactic sugar to `get` and `set` native method calls. 
 
 That's it. 
 
@@ -55,7 +55,7 @@ There is no runtime check for whether a class inherits from a higher class to be
 
 This is... a choice.
 
-I originally wanted to make subscript notation less accessible; much earlier ago I read through [Hamilton's excellent Kotlin implementation of Lox](https://github.com/mrjameshamilton/klox/tree/master) and while I was (and still am!) amazed with the features added, it also stood out how easy it was to overload the binary operators. It wasn't a design choice I agreed with at the time. I was leaning more towards Python's approach of parent classes / traits such as `Sequence` and `Mapping`. You had to opt into using subscript notation.
+I originally wanted to make subscript notation less accessible; much earlier ago I read through [Hamilton's excellent Kotlin superset implementation of Lox, **klox**](https://github.com/mrjameshamilton/klox/tree/master) and while I was (and still am!) amazed with the features added, it also stood out how easy it was to overload the binary operators. It wasn't a design choice I agreed with at the time. I was leaning more towards Python's approach of parent classes / traits such as `Sequence` and `Mapping`. You had to opt into using subscript notation.
 
 Now, though? A runtime check is a runtime check, and something like inheritance where, *at worst*, the entire inheritance chain has to be traversed? That's expensive.
 

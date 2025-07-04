@@ -21,7 +21,7 @@ The syntax for array slicing is a bit all over the place, especially as most lan
 The Python approach does have some nice properties, especially with regards to half-open intervals and how `arr == concatenate(arr[:pivot], arr[pivot:])`, as well as that `step` argument. It makes indexing especially easy for every nth element (`arr[::n]`) or getting a reversed list (`arr[::-1]`). The reason I lean towards this is due to familiarity as well: Python is one of my languages alongside Java and C++/C.
 
 There's two main cons against Python-style slicing:
-- There's quite a few cases to parse for, which is extra work done by the compiler. There is exactly one case for Perl-style slicing, two if you count base indexing. Also, Perl supports indexing using a function, equivalent to a `filter` operation in current-day Lox.
+- There's quite a few cases to parse for, which is extra work done by the compiler. There is exactly one case for Perl-style slicing, two if you count base indexing. Also, Perl supports indexing using a function, equivalent to a `filter` operation in current-day Sulfox.
 - Half-open intervals are *extremely unintuitive*, especially for beginners. [Here's a StackOverflow post all about that.](https://stackoverflow.com/questions/11364533/why-are-pythons-slice-and-range-upper-bound-exclusive) One commentor aptly claimed that it boiled down to "Elegant-ness vs. Obvious-ness", using the task of splitting an array as an example:
     ```python
     # Python
@@ -126,7 +126,7 @@ It makes some intuitive sense to "wrap around" and get `[2,1,0,9]`, but we'll ha
 
 There's a lot of edge-case hell that arises from allowing such operations, especially with assuming defaults; should `arr[2:-2]` correspond to `arr[2:-2:1]` or `arr[2:-2:-1]`? Either of these could be what the user expects, and we can't have both. Which, then? How about slices beginning from a negative index and ending in a positive one?
 
-Keep in mind that while negative indexing is supported in Lox, *circular* indexing is not:
+Keep in mind that while negative indexing is supported in Sulfox, *circular* indexing is not:
 
 ```
 +-----+-----+-----+
@@ -139,3 +139,17 @@ Keep in mind that while negative indexing is supported in Lox, *circular* indexi
 Only indexes `-3 <= n < 3` for integer n are valid indexes. Anything beyond is out of range.
 
 I'll be copying Python's semantics regarding this matter: `arr[2:-2:-1]` is equivalent to `arr[2:8:-1]`, which is empty array `[]`.
+
+## What of the Actual Implementation?
+
+It's in the `get` and `set` native methods for the Array sentinel class, and in Nativeland they're named `arrayGetInit` and `arraySetInit` in the file `native.c`. Go on, have a look.
+
+A lot of the changes are mostly mechanical plumbing for the methods to accept and evaluate slice objects, pulling out the information in them and iterating through the array for reading/writing. There is nothing new there that you haven't already seen, and honestly I don't like retreading familiar ground when it comes to these internal write-ups. They're mostly for future me anyways.
+
+## Do We Care About the Slice Object Itself?
+
+Currently, there is no way to pull out the information encoded in a Slice object. There is no way to get the value of a `step` argument from a Slice object.
+
+I personally don't find this an issue.
+
+Slice objects are used to slice arrays. Anything else is secondary, and implementing the (trivial) native functions to extract the information could lead to the bad practice of using the Slice object as a container type. Suffice to say... that's not what it's for.

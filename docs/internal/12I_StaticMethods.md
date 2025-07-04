@@ -8,7 +8,7 @@ If this seems a little backwards, it is! I should've implemented this first oh m
 
 The `static` keyword means a lot of things and nothing at the same time. It's a term that is dreamt up by programmers, and thus is vulnerable to [XKCD 927](https://xkcd.com/927/).
 
-Still, though, let's try to find out what the general zeitgeist is, so that we can define what it means in *Lox*.
+Still, though, let's try to find out what the general zeitgeist is, so that we can define what it means here.
 
 - In C, `static` variables and functions are initialized *once* upon starting the program. They keep this allocation until the program exits. During this time, the static variable or function keeps its value throughout the program.
   - So, for instance, a `static int` in a function will [retain its value between invocations](https://stackoverflow.com/questions/572547/what-does-static-mean-in-c). This helps track state behaviour (handy for a language with no classes) but makes the code less thread-safe.
@@ -18,7 +18,7 @@ Still, though, let's try to find out what the general zeitgeist is, so that we c
 
 Those are the main ones. As is usual, the distinction usually comes from whether the design approach takes more inspiration from Java or C.
 
-Lox is a fairly high-level language. I think the Java definition works better here.
+Lox (and by extension, Sulfox) is a fairly high-level language. I think the Java definition works better here.
 
 ## More Hash Tables
 

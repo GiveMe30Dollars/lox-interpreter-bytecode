@@ -30,7 +30,7 @@ arr.set(Slice(nil, nil, 2), target);
 
 A slice object accepts three arguments corresponding to `start : stop : step`, which must be whole numbers or `nil`. Additionally, the value of `step` must be non-zero, with `nil` corresponding to a default value of 1.
 
-String indexing and slicing is also added, though only get operations are supported, as Lox strings are immutable. You may pass a string to the Array constructor to obtain an array of its substituent characters. As Lox does not have characters as a data type, this corresponds to strings of length 1.
+String indexing and slicing is also added, though only get operations are supported, as Lox strings are immutable. You may pass a string to the Array constructor to obtain an array of its substituent characters. As Sulfox does not have characters as a data type, this corresponds to strings of length 1.
 
 Currently, there is no official way to convert an array of characters to a string. You may use `Array.reduce(fn)` to convert an array to a string via a string concatenation lambda.
 
