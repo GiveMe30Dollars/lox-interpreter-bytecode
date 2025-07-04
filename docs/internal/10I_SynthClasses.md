@@ -1,4 +1,4 @@
-# 10I: Sentinel Classes
+# 10I: Synth Classes
 
 ***Disclaimer:*** The following Documents [11I](11I_Arrays.md), [12I](12I_StaticMethods.md) and [13I](13I_MultipleInheritance.md) are interconnected with this document. Certain things may be explained out of order. You have beed warned.
 
@@ -20,16 +20,16 @@ This was what I came up with.
 
 ## Are They Classes? Kind of. Not Really.
 
-Sentinel classes are artifically-constructed classes, with native functions as initializers and methods. The initializer is basically a way to cast from one data type to another (since the functions are not end-user-defined, the enforcement to only return `this` does not apply), and the methods... well, anything, really. Native functions, man. Go wild.
+Synth classes are synthetic classes, with native functions as initializers and methods. The initializer is basically a way to cast from one data type to another (since the functions are not end-user-defined, the enforcement to only return `this` does not apply), and the methods... well, anything, really. Native functions, man. Go wild.
 
-The power of sentinel classes is that I can implement Lox-accessible methods for objects that must have some sort of back-end support on the C end of the VM: constant lookup for contiguous arrays, subscript notation for container types and such. At the same time, it helps me consolidate all the native functions I intend to implement into categorizable classes (putting `concatenate` as a static method of `String`, for instance).
+The power of synth classes is that I can implement Lox-accessible methods for objects that must have some sort of back-end support on the C end of the VM: constant lookup for contiguous arrays, subscript notation for container types and such. At the same time, it helps me consolidate all the native functions I intend to implement into categorizable classes (putting `concatenate` as a static method of `String`, for instance).
 
-As for type-checking, that's still a work-in-progress. The native function `type` takes in any object and returns its respective sentinel class (or for actual Lox instances, its class). A class returns itself.  
+As for type-checking, that's still a work-in-progress. The native function `type` takes in any object and returns its respective synth class (or for actual Lox instances, its class). A class returns itself.  
 *Aside: Python's metaclasses are great and also scare me. Let's... not.* 
 
 As for how this interacts with inheritance... it currently doesn't. While `super` can be captured in a method closure it isn't *always* captured. Perhaps a hidden uncallable function would help me with that. That's for future-me to worry about.
 
-There's still some practical considerations to implementing sentinel classes though, namely:
+There's still some practical considerations to implementing synth classes though, namely:
 
 ## Lox Has No Modularity Story
 
@@ -76,7 +76,7 @@ Nystrom has given his answer in [the original solution to Challenge 24-2](https:
 
 Cool, except this makes writing a Lox native function a tad bit unintuitive, *and* I sometimes call native functions in the program itself. What then?
 
-I already have a special sentinel value from back when we extended the hash table to take `Value` keys: `<empty>`. This value is unobtainable in Lox, and in fact allowing access to it would be a *bad idea* and would break hash table implementation. There is *no* situation where a successful native function call returns empty. The perfect failure flag.
+I already have a special synth value from back when we extended the hash table to take `Value` keys: `<empty>`. This value is unobtainable in Lox, and in fact allowing access to it would be a *bad idea* and would break hash table implementation. There is *no* situation where a successful native function call returns empty. The perfect failure flag.
 
 At first, I wanted to designate `Exception` as the failure object, but there *are* situations where a user might want to create their own Exception instances with try-throw-catch control flow. We can still have native functions return Exceptions for failure: just stash it into the stack!
 
@@ -90,29 +90,29 @@ Cool, what about native methods?
 
 If the only way a native function could be called is through instance invocation, then slot `args[-1]` is the instance `this`. Perfect.
 
-## Sentinel Invocations
+## Synth Invocations
 
 For now, let's just deal with `OP_INVOKE`.
 
 When we call `invoke()`, we first check whether the object is an instance. If yes, we search in its fields, followed by its methods.  
-Otherwise? This is where the sentinel classes come into play.
+Otherwise? This is where the synth classes come into play.
 
-We call `type` to get a sentinel class for this Value, failing immediately if we don't get one. Then, we `invokeFromClass`. That's it. The machinery for this was already in place. We just had to link it up.
+We call `type` to get a synth class for this Value, failing immediately if we don't get one. Then, we `invokeFromClass`. That's it. The machinery for this was already in place. We just had to link it up.
 
-Similar logic handling is added for `OP_GET_PROPERTY`, since Lox supports getting bound methods.
+Similar logic handling is added for `OP_GET_PROPERTY`, since Lox (and by extension Sulfox) supports getting bound methods.
 
 ## The Import Interface
 
 This is the part most subject to change. It's kind of a mess.
 
-C doesn't like arbitrary nesting without manual allocation or some level of pointer indirection. That means I cannot simply encapsulate a sentinel's methods in its import structure.
+C doesn't like arbitrary nesting without manual allocation or some level of pointer indirection. That means I cannot simply encapsulate a synth's methods in its import structure.
 
 So I improvised.
 
 ```c
 typedef enum {
     IMPORT_NATIVE,
-    IMPORT_SENTINEL,
+    IMPORT_SYNTH,
     IMPORT_STATIC
 } ImportHeader;
 
@@ -125,20 +125,20 @@ typedef struct {
 typedef struct {
     const char* name;
     const int numOfMethods;
-} ImportSentinel;
+} IMPORT_SYNTH;
 
 typedef struct {
     ImportHeader header;
     union {
         ImportNative native;
-        ImportSentinel sentinel;
+        IMPORT_SYNTH synth;
     } as;
 } ImportStruct;
 ```
 
 This might look familiar as the tagged-union representation of Values in Lox. The concepts are pretty similar, with the convenience preprocessor macros to boot.
 
-Note that the sentinel struct stores the number of methods in it. This assumes a sentinel's methods immediately follow a sentinel declaration, and any mismatch would either result in a segfault or methods and/or functions being encapsulated in the wrong sentinel.
+Note that the synth struct stores the number of methods in it. This assumes a synth's methods immediately follow a synth declaration, and any mismatch would either result in a segfault or methods and/or functions being encapsulated in the wrong synth.
 
 The `IMPORT_STATIC` enum doesn't have a corresponding struct. This is because they are treated identically to native methods up until inserting it into a hash table, where it also goes into the class's `statics` hash table.
 
@@ -148,6 +148,6 @@ An `ImportStruct` flat array is dynamically allocated and deallocated upon initi
 
 Disclaimer: it's not pretty.
 
-Inheriting from a sentinel is a bad idea, period. Calling `super.init` would degrade the instance to a primitive data type, and doing anything with its fields afterwards would segfault. Using any of the sentinel methods on a Lox instance would also segfault.
+Inheriting from a synth is a bad idea, period. Calling `super.init` would degrade the instance to a primitive data type, and doing anything with its fields afterwards would segfault. Using any of the synth methods on a Lox instance would also segfault.
 
 I'll probably prohibit this during runtime. As of now, though, nothing is stopping you from doing it, but its not a good idea. Even for something like `Exception` (or should I call it BaseException?).
