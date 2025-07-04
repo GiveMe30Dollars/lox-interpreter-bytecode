@@ -133,7 +133,7 @@ There are a few main components that cause dispatch implementations to differ:
 
 Under these defintions, it doesn't make sense to talk about function overloading the way C and friends have it: function overloading is done via type signatures, and type information at compile-time is only accessible if the language is statically-typed.
 
-When I talk about overloading with regards to Lox, I'm referring to arity overloading, which is providing different implementations of functions with the same identifier based on the number of arguments it takes. This is available regardless of typing.
+When I talk about overloading with regards to Sulfox, I'm referring to arity overloading, which is providing different implementations of functions with the same identifier based on the number of arguments it takes. This is available regardless of typing.
 
 ```c++
 fun overload(){
@@ -152,15 +152,15 @@ In a static-dispatch paradigm, these functions *are* totally distinct. C++ is on
 
 Usually, such a paradigm necessitates downgrading functions from first-class objects. C++, C and similar languages such as Java have layers of indirection when it comes to using functions with variables, whether it's function pointers in the C family or using the Runnable interface to create a class, from which you can use an instance to call it as a method. You typically cannot pass a function as an argument to another function.
 
-Lox is not such a program. We do cover this in a later section, but to give a teaser:
+Sulfox is not such a program. We do cover this in a later section, but to give a teaser:
 
-```
+```c++
 var myFunction = overload;
 myFunction();
 myFunction("argument");
 ```
 
-`myFunction` could refer to either `overload` of arity 0 or 1. Since functions can be passed around, and a function can be separated from its call, we don't know which implementation of `overload` to use until the runtime encounters the infix `(` for a call, and the number of arguments supplied. *It is both.* Lox has to use some form of dynamic dispatch to differentiate the two. This comes at a non-trivial runtime cost.
+`myFunction` could refer to either `overload` of arity 0 or 1. Since functions can be passed around, and a function can be separated from its call, we don't know which implementation of `overload` to use until the runtime encounters the infix `(` for a call, and the number of arguments supplied. *It is both.* Sulfox has to use some form of dynamic dispatch to differentiate the two. This comes at a non-trivial runtime cost.
 
 Most dynamically-typed languages do not have this form of "overloading". The only one that I could find that does is [Wren, which is another one of Bob Nystrom's languages](https://wren.io/functions.html).
 
@@ -171,11 +171,12 @@ To quickly go over the highlights of the big names:
 - PHP has [default parameters and variadic functions, but no function overloading](https://stackoverflow.com/questions/4697705/php-function-overloading). Magic functions and methods are not subject to the limitations of the PHP runtime and should not be considered.
 - Julia, Haskell, Clojure and other functional languages inheriting from ML uses pattern-matching to achieve static multiple dispatch via type signature.
 
-**With all that said**, *sematically*, Lox implements dynamic single dispatch for functions, and dynamic double dispatch for methods. Global definitions are late-bound, as are all other Lox global variables, and local variables are resolved lexically.
+**With all that said**, *sematically*, Sulfox implements dynamic single dispatch for functions, and dynamic double dispatch for methods. Global definitions are late-bound, as are all other Lox global variables, and local variables are resolved lexically.
 
 As for implementation details? I'll be resolving most common cases of dispatch statically, during compile-time, similar to how base Lox avoids creating bound methods wherever possible. I later refer to this as "shortcutting". There's some cases where it's feasible, and some where it isn't. Generally, I won't resolve return values across call frames, nor when assigning to a variable, even if only one implementation is called via that variable.
 
-*Aside: I should really use another name that indicates that I've diverged, **far**, from where Crafting Interpreters initially ended, and that this is a superset of Lox. Nothing immediately comes to mind though.*
+*Aside (outdated): I should really use another name that indicates that I've diverged, **far**, from where Crafting Interpreters initially ended, and that this is a superset of Lox. Nothing immediately comes to mind though.*  
+*Update: done. Hail Sulfox, long may they reign.*
 
 ## Name-Mangling Functions
 
@@ -183,9 +184,9 @@ This part I knew. Nystrom implemented something similar for [BETA-style `inner` 
 
 When we define a function, we also store its arity in its identifier signature. Then, when we call a function, we search for a function with that arity. Sounds simple, right?
 
-This format could be anything as long as it represented the arity of a function, appended to its original name. For the sake of consistency, this write-up will use the format `function@0xNN`, where the arity signature is an at-sign (to prevent accessibility by Lox users) followed by a two-digit hexadecimal number. As the maximum number of arguments in a function is 256-exclusive thanks to stack limitations, this covers all possible arities a function could have.
+This format could be anything as long as it represented the arity of a function, appended to its original name. For the sake of consistency, this write-up will use the format `function@0xNN`, where the arity signature is an at-sign (to prevent accessibility by Lox/Sulfox users) followed by a two-digit hexadecimal number. As the maximum number of arguments in a function is 256-exclusive thanks to stack limitations, this covers all possible arities a function could have.
 
-Helper functions for name-mangling and unmangling identifiers for `ObjString`s, extracting the arity of a mangled identifier, and checking whether an identifier represents a mangled name should be defined. Additional fields for `Token` should indicate whether it represents the identifier of a function and its arity. This difference in representation is mostly because Tokens and their fields are not dynamically allocated: they either point into the source string or into string literals, which are eternal in C. Also, I am *not* adding a new identifier type to Lox.
+Helper functions for name-mangling and unmangling identifiers for `ObjString`s, extracting the arity of a mangled identifier, and checking whether an identifier represents a mangled name should be defined. Additional fields for `Token` should indicate whether it represents the identifier of a function and its arity. This difference in representation is mostly because Tokens and their fields are not dynamically allocated: they either point into the source string or into string literals, which are eternal in C. Also, I am *not* adding a new identifier type to Sulfox.
 
 Anonymous functions and lambdas are not name-mangled, since they are compiled once and either remain on the stack as an expression or are assigned to a global variable. Either way, you cannot access them through a function name identifier anyways.
 
@@ -193,7 +194,7 @@ That should be it. Right? *Right?*
 
 ## We Cannot Resolve (Some) Function Calls At Compile-Time
 
-Two things cause implementing function overloading in Lox to be particularly painful:
+Two things cause implementing function overloading in  a language like Lox to be particularly painful:
 - Functions are first-class objects. They can be passed around and stored in variables.
 - A call can be separated from the function object itself. A call is an operation, just like the typical binary operators.
 
@@ -270,15 +271,15 @@ globalFunc("One", "Two");               // One
                                         // Two
 ```
 
-This does seem like a questionable choice, I'll admit. We made our bed when we decided global variables should be treated differently from local variables or upvalues. We now commit to them lest Lox becomes more inconsistent.
+This does seem like a questionable choice, I'll admit. We made our bed when we decided global variables should be treated differently from local variables or upvalues. We now commit to them lest Sulfox becomes more inconsistent.
 
 When we parse `double`, we only have `printline@0x01`. If we resolved the `printline` identifier to that, the runtime would throw an arity exception. Should we do that? Not unless we want to resolve global variables in lexical scope.
 
-All of that is preamble to the main discussion: we need a new way to represent multiple-arity functions (or a collection of multiple function definitions, depending on whether you're behind the Lox curtain).
+All of that is preamble to the main discussion: we need a new way to represent multiple-arity functions (or a collection of multiple function definitions, depending on whether you're behind the Sulfox curtain).
 
 ## Function Bundles
 
-An `ObjBundle` is an object wrapper for a hash table, mapping arity count to the `ObjFunction` or `ObjClosure` it represents. It should appear identically to a function for a Lox end-user, and thus falls under the sentinel class Function.
+An `ObjBundle` is an object wrapper for a hash table, mapping arity count to the `ObjFunction` or `ObjClosure` it represents. It should appear identically to a function for an end-user, and thus falls under the sentinel class Function.
 
 *Aside: not that there's currently anything there other than a way to check a function's arity. A function constructor that works during runtime is a whole other topic/article due to the reduction of local variables to slot indexes rather than identifiers during runtime. Would probably necessitate turning the sentinel identifiers into reserved keywords, and more compiler-VM coupling.*
 
@@ -441,7 +442,7 @@ I can see arguments for and against this. Done purposefully, it could be rather 
 
 Do you see why most dynamic languages simply *don't?*
 
-I'll admit that typing this out gave me a lot to chew on, and it does sound exciting, but this is a rather large structural change to how Lox works.
+I'll admit that typing this out gave me a lot to chew on, and it does sound exciting, but this is a rather large structural change to how Lox and Sulfox currently works.
 
 As of writing, I have not implemented this yet. I *want to*, but I also want to add tail calls and array slicing and first-class hash tables, and those are easier *by far*. This feels like branch material.
 

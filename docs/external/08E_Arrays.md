@@ -1,6 +1,6 @@
 # 08E: Arrays
 
-The experimental branch `containers` now supports arrays as first-class data types.
+The experimental branch `containers` now supports arrays as first-class objects.
 
 Arrays can be initialized using array literal syntax `[...]` or using the `Array` constructor.
 

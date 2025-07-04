@@ -2,9 +2,9 @@
 
 Funnily enough, I didn't have to change much to get this one working. The tools are here, i just needed to compose them into something that fits the semantics of try-throw-catch control flow.
 
-I wanted this to work not only on the Lox end, but also on the C end; my native functions can signal failure, but what should I do afterwards with that information?
+I wanted this to work not only on the Sulfox end, but also on the C end; my native functions can signal failure, but what should I do afterwards with that information?
 
-The naive approach would be to immediately terminate the program. That's fine, but it pushes a lot of the responsibility of type-checking onto the Lox end-user. Something like `"str" + 3` would be immediately fatal. As part of the STL also involves exposing IO functionality, I think this would be a chore to work around for a Lox end-user. They'd have to defensively program a lot of things before passing it to the Lox core operators. That's not great.
+The naive approach would be to immediately terminate the program. That's fine, but it pushes a lot of the responsibility of type-checking onto the Sulfox end-user. Something like `"str" + 3` would be immediately fatal. As part of the STL also involves exposing IO functionality, I think this would be a chore to work around. They'd have to defensively program a lot of things before passing it to the Sulfox core operators. That's not great.
 
 So, if there *is* something that is bad but not irrevocable, we have the VM throw a runtime *exception* instead. This would unwind the call stack up until a try clause is found, and from there the end-user can do error recovery or logging in the catch clause.
 
@@ -37,7 +37,7 @@ Then, for the catch clause, we can cheap out and compile it as a block, with a s
 
 ## Runtime Exceptions (Throwing)
 
-Compiling the `throw` statement is easy. It's near identical to a return statement, with `OP_THROW` as the operand instead of `OP_RETURN`.Now to figure out what that should do during runtime. 
+Compiling the `throw` statement is easy. It's near identical to a return statement, with `OP_THROW` as the opcode instead of `OP_RETURN`.Now to figure out what that should do during runtime. 
 
 Since we're going to call this from the VM as well, let's separate this off into its own function.
 
@@ -54,6 +54,8 @@ If we *do* encounter a try clause, we discard all call frames above it *and* the
 We need a way to indicate whether the exception throw leads to a valid state where the interpreter can continue executing. This is what the return value is for: `true` if the throw is caught and to continue execution, and `false` otherwise. The choice to have true indicate a successfully *caught* exception is a bit counterintuitive, but lines up with the semantics of `call` and `invoke` helper functions. That means that we can return a tail call to `throwValue` if these methods throw a runtime exception.
 
 For the sake of easier plumbing through the VM, I also added another helper function `runtimeException` that mimics the semantics of `runtimeError` by constructing and throwing an `ObjString`.
+
+*Update: `runtimeException` now wraps the ObjString in an Exception object before throwing.*
 
 ```c
 static bool runtimeException(const char* format, ...){
