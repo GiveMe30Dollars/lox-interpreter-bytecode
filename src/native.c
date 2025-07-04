@@ -17,26 +17,26 @@ Value clockNative(int argCount, Value* args){
 Value typeNative(int argCount, Value* args){
     Value value = args[0];
 
-    // if a sentinel identified, the string is already interned. this is safe.
-    ObjString* sentinel = NULL;
+    // if a synth identified, the string is already interned. this is safe.
+    ObjString* synth = NULL;
 
     if (IS_NIL(value)){
         return NIL_VAL();
     } else if (IS_BOOL(value)){
-        sentinel = copyString("Boolean", 7);
+        synth = copyString("Boolean", 7);
     } else if (IS_NUMBER(value)){
-        sentinel = copyString("Number", 6);
+        synth = copyString("Number", 6);
     } else {
         switch(OBJ_TYPE(value)){
             case OBJ_STRING: {
-                sentinel = copyString("String", 6);
+                synth = copyString("String", 6);
                 break;
             }
             case OBJ_NATIVE:
             case OBJ_FUNCTION:
             case OBJ_CLOSURE:
             case OBJ_BOUND_METHOD: {
-                sentinel = copyString("Function", 8);
+                synth = copyString("Function", 8);
                 break;
             }
             case OBJ_CLASS:
@@ -45,27 +45,27 @@ Value typeNative(int argCount, Value* args){
                 return OBJ_VAL(AS_INSTANCE(value)->klass);
 
             case OBJ_EXCEPTION:{
-                sentinel = copyString("Exception", 9);
+                synth = copyString("Exception", 9);
                 break;
             }
             case OBJ_ARRAY: {
-                sentinel = copyString("Array", 5);
+                synth = copyString("Array", 5);
                 break;
             }
             case OBJ_ARRAY_SLICE: {
-                sentinel = copyString("Slice", 5);
+                synth = copyString("Slice", 5);
                 break;
             }
             case OBJ_HASHMAP: {
-                sentinel = copyString("Hashmap", 7);
+                synth = copyString("Hashmap", 7);
             }
             default: ;    // Fallthrough
         }
     }
-    if (sentinel != NULL){
+    if (synth != NULL){
         // the sentinels must be in the STL.
         Value klass;
-        tableGet(&vm.stl, OBJ_VAL(sentinel), &klass);
+        tableGet(&vm.stl, OBJ_VAL(synth), &klass);
         return klass;
     }
     return EMPTY_VAL();
@@ -99,7 +99,7 @@ static inline bool isWholeNumber(Value value){
 }
 
 
-// STRING SENTINEL METHODS
+// STRING SYNTH METHODS
 
 // defines idx as an integer if the value given is a whole number within the bounds of the array given.
 // otherwise, does error logging and returns -1 to signal an error.
@@ -251,13 +251,13 @@ Value stringLengthNative(int argCount, Value* args){
     return NUMBER_VAL(AS_STRING(args[-1])->length);
 }
 
-// FUNCTION SENTINEL METHODS
+// FUNCTION SYNTH METHODS
 
 Value functionArityNative(int argCount, Value* args){
     return NUMBER_VAL(AS_FUNCTION(args[-1])->arity);
 }
 
-// EXCEPTION SENTINEL METHODS
+// EXCEPTION SYNTH METHODS
 
 Value exceptionInitNative(int argCount, Value* args){
     ObjException* exception = newException(args[0]);
@@ -267,7 +267,7 @@ Value exceptionPayloadNative(int argCount, Value* args){
     return AS_EXCEPTION(args[-1])->payload;
 }
 
-// ARRAY SENTINEL METHODS
+// ARRAY SYNTH METHODS
 
 // defines idx as an integer if the value given is a whole number within the bounds of the array given.
 // otherwise, does error logging and returns -1 to signal an error.
@@ -473,7 +473,7 @@ Value arrayLengthNative(int argCount, Value* args){
 }
 
 
-// SLICE SENTINEL METHODS
+// SLICE SYNTH METHODS
 
 Value sliceInitNative(int argCount, Value* args){
     // check that arguments are valid
@@ -514,7 +514,7 @@ Value sliceRawNative(int argCount, Value* args){
 }
 
 
-// HASHMAP SENTINEL METHODS
+// HASHMAP SYNTH METHODS
 Value hashmapInitNative(int argCount, Value* args){
     ObjHashmap* hashmap = newHashmap();
     args[-1] = OBJ_VAL(hashmap);
@@ -566,10 +566,10 @@ ImportInfo buildSTL(){
         IMPORT_NATIVE("type", typeNative, 1),
         IMPORT_NATIVE("hasMethod", hasMethodNative, 2),
 
-        IMPORT_SENTINEL("Boolean", 0),
-        IMPORT_SENTINEL("Number", 0),
+        IMPORT_SYNTH("Boolean", 0),
+        IMPORT_SYNTH("Number", 0),
 
-        IMPORT_SENTINEL("String", 5),
+        IMPORT_SYNTH("String", 5),
             IMPORT_STATIC("init", stringNative, 1),
             IMPORT_STATIC("concatenate", concatenateNative, -1),
             IMPORT_NATIVE("add", stringAddNative, 1),
@@ -577,14 +577,14 @@ ImportInfo buildSTL(){
             IMPORT_NATIVE("set", stringSetNative, 2),
             IMPORT_NATIVE("length", stringLengthNative, 0),
 
-        IMPORT_SENTINEL("Function", 1),
+        IMPORT_SYNTH("Function", 1),
             IMPORT_NATIVE("arity", functionArityNative, 0),
 
-        IMPORT_SENTINEL("Exception", 2),
+        IMPORT_SYNTH("Exception", 2),
             IMPORT_NATIVE("init", exceptionInitNative, 1),
             IMPORT_NATIVE("payload", exceptionPayloadNative, 0),
 
-        IMPORT_SENTINEL("Array", 8),
+        IMPORT_SYNTH("Array", 8),
             IMPORT_STATIC("@raw", arrayRawNative, -1),
             IMPORT_NATIVE("init", arrayInitNative, -1),
             IMPORT_NATIVE("get", arrayGetNative, 1),
@@ -594,11 +594,11 @@ ImportInfo buildSTL(){
             IMPORT_NATIVE("delete", arrayDeleteNative, 1),
             IMPORT_NATIVE("length", arrayLengthNative, 0),
 
-        IMPORT_SENTINEL("Slice", 2),
+        IMPORT_SYNTH("Slice", 2),
             IMPORT_STATIC("@raw", sliceRawNative, -1),
             IMPORT_NATIVE("init", sliceInitNative, 3),
 
-        IMPORT_SENTINEL("Hashmap", 5),
+        IMPORT_SYNTH("Hashmap", 5),
             IMPORT_STATIC("@raw", hashmapRawNative, -1),
             IMPORT_NATIVE("init", hashmapInitNative, -1),
             IMPORT_NATIVE("has", hashmapHasNative, 1),

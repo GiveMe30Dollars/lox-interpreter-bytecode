@@ -6,7 +6,7 @@
 
 typedef enum {
     IMPORT_NATIVE,
-    IMPORT_SENTINEL,
+    IMPORT_SYNTH,
     IMPORT_STATIC
 } ImportHeader;
 
@@ -19,13 +19,13 @@ typedef struct {
 typedef struct {
     const char* name;
     const int numOfMethods;
-} ImportSentinel;
+} ImportSynth;
 
 typedef struct {
     ImportHeader header;
     union {
         ImportNative native;
-        ImportSentinel sentinel;
+        ImportSynth synth;
     } as;
 } ImportStruct;
 
@@ -38,8 +38,8 @@ typedef struct {
     ((ImportStruct){IMPORT_NATIVE, {.native = {name, function, arity}}})
 #define IMPORT_STATIC(name, function, arity) \
     ((ImportStruct){IMPORT_STATIC, {.native = {name, function, arity}}})
-#define IMPORT_SENTINEL(name, num) \
-    ((ImportStruct){IMPORT_SENTINEL, {.sentinel = {name, num}}})
+#define IMPORT_SYNTH(name, num) \
+    ((ImportStruct){IMPORT_SYNTH, {.synth = {name, num}}})
 
 
 ImportInfo buildSTL();
@@ -53,7 +53,5 @@ Value typeNative(int argCount, Value* args);
 Value hasMethodNative(int argCount, Value* args);
 
 Value stringPrimitiveNative(int argCount, Value* args);
-
-
 
 #endif

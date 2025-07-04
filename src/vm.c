@@ -138,19 +138,19 @@ static int defineNative(ImportNative native, bool isStaticMethod, const int i){
     pop();
     return i + 1;
 }
-static int defineSentinel(ImportSentinel sentinel, ImportInfo imports, const int i){
+static int defineSynth(ImportSynth synth, ImportInfo imports, const int i){
     // push onto stack to ensure they survive GC
     // also sets native static and nonstatic methods
-    push(OBJ_VAL( copyString(sentinel.name, (int)strlen(sentinel.name)) ));
+    push(OBJ_VAL( copyString(synth.name, (int)strlen(synth.name)) ));
     push(OBJ_VAL( newClass(AS_STRING(peek(0))) ));
-    for (int j = 1; j <= sentinel.numOfMethods; j++){
+    for (int j = 1; j <= synth.numOfMethods; j++){
         ImportStruct method = imports.start[i + j];
         defineNative(method.as.native, (method.header == IMPORT_STATIC), j);
     }
     tableSet(&vm.stl, peek(1), peek(0));
     pop();
     pop();
-    return i + sentinel.numOfMethods + 1;
+    return i + synth.numOfMethods + 1;
 }
 
 void stl(){
@@ -160,7 +160,7 @@ void stl(){
         if (imp.header == IMPORT_NATIVE){
             i = defineNative(imp.as.native, false, i);
         } else {
-            i = defineSentinel(imp.as.sentinel, imports, i);
+            i = defineSynth(imp.as.synth, imports, i);
         }
     }
     freeSTL(imports);
@@ -410,11 +410,11 @@ bool invoke(Value name, int argCount){
             return runtimeException("No static method of name '%s'.", AS_CSTRING(name));
         }
     } else {
-        // Find sentinel
-        Value sentinel = typeNative(1, &receiver);
-        if (!IS_EMPTY(sentinel)){
-            // sentinel class found.
-            return invokeFromClass(AS_CLASS(sentinel), name, argCount);
+        // Find synth
+        Value synth = typeNative(1, &receiver);
+        if (!IS_EMPTY(synth)){
+            // synth class found.
+            return invokeFromClass(AS_CLASS(synth), name, argCount);
         }
         // Nothing.
         return runtimeException("Object does not have methods.");
@@ -683,7 +683,7 @@ static InterpreterResult run(bool isSTL){
             case OP_CLASS: {
                 ObjString* name = READ_STRING();
                 Value klass;
-                // if isSTL and class has sentinel counterpart, open that class
+                // if isSTL and class has synth counterpart, open that class
                 if (isSTL && tableGet(&vm.stl, OBJ_VAL(name), &klass)){
                     push(klass);
                     break;
@@ -720,14 +720,14 @@ static InterpreterResult run(bool isSTL){
                         break;
                     }
                 } else {
-                    // look for sentinel class methods
+                    // look for synth class methods
                     Value value = peek(0);
-                    Value sentinel = typeNative(1, &value);
-                    if (IS_EMPTY(sentinel)){
+                    Value synth = typeNative(1, &value);
+                    if (IS_EMPTY(synth)){
                         THROW(runtimeException("This object does not have properties."));
                         break;
                     } else {
-                        klass = AS_CLASS(sentinel);
+                        klass = AS_CLASS(synth);
                     }
                 }
                 if (!bindMethod(klass, name)){
