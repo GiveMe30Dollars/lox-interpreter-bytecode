@@ -279,9 +279,9 @@ All of that is preamble to the main discussion: we need a new way to represent m
 
 ## Function Bundles
 
-An `ObjBundle` is an object wrapper for a hash table, mapping arity count to the `ObjFunction` or `ObjClosure` it represents. It should appear identically to a function for an end-user, and thus falls under the sentinel class Function.
+An `ObjBundle` is an object wrapper for a hash table, mapping arity count to the `ObjFunction` or `ObjClosure` it represents. It should appear identically to a function for an end-user, and thus falls under the synth class Function.
 
-*Aside: not that there's currently anything there other than a way to check a function's arity. A function constructor that works during runtime is a whole other topic/article due to the reduction of local variables to slot indexes rather than identifiers during runtime. Would probably necessitate turning the sentinel identifiers into reserved keywords, and more compiler-VM coupling.*
+*Aside: not that there's currently anything there other than a way to check a function's arity. A function constructor that works during runtime is a whole other topic/article due to the reduction of local variables to slot indexes rather than identifiers during runtime. Would probably necessitate turning the synth identifiers into reserved keywords, and more compiler-VM coupling.*
 
 A function bundle only contains functions of the same identifier accessible via local variables or upvalues. If a function bundle is called, we disambugate the specific function and call that instead. This is also done for bound method bundles, before it is replaced by `this`.
 
@@ -292,7 +292,7 @@ The static constructor of a function bundle will be passed all its accessible fu
 When parsing an identifier, we know a local variable is a component of a function bundle if its corresponding Token is a function identifier.
 
 Once we know this, we know that we are parsing a function identifier, and do the following:
-- Emit `OP_CONSTANT` to put the sentinel class `Function` onto the stack.
+- Emit `OP_CONSTANT` to put the synth class `Function` onto the stack.
 - Emit the get instructions to push the bundle component found onto the stack.
 - Walk through all local variables, including enclosing scopes, and check if the token contents match.
   - If yes, check if the token is a function identifier.
@@ -333,7 +333,7 @@ With one token of lookahead, after we identify the indentifier to be a function 
 
 It does kind of suck that a normal function call now has three extra jump instructions, but between this and creating a heap-allocated object that is discarded next instruction? This wins out.
 
-*Thoughts:* you could change the semantics of function calling to resemble `OP_INVOKE` or `OP_SUPER_INVOKE` more, or emit an inaccessible sentinel constant like the existing `<empty>` or a new singleton value that accepts such use for normal functions. This saves all the jumping but does require new VM behaviour. This is an acceptable compromise, though, since we'll have to change some VM plumbing regarding function calls and method invocations anyways to accomodate the addition of bundles.
+*Thoughts:* you could change the semantics of function calling to resemble `OP_INVOKE` or `OP_SUPER_INVOKE` more, or emit an inaccessible synth constant like the existing `<empty>` or a new singleton value that accepts such use for normal functions. This saves all the jumping but does require new VM behaviour. This is an acceptable compromise, though, since we'll have to change some VM plumbing regarding function calls and method invocations anyways to accomodate the addition of bundles.
 
 ## Runtime Support for Calling Bundles
 
@@ -397,7 +397,7 @@ Alright, so before we close the class, we need to create these bundles and put t
 Just before we emit the `OP_POP` instruction to knock the class off the stack, we do the following:
 - Get the first non-empty entry.
 - Unmangle the name and save it somewhere, both as a Token and as a constant in the chunk constants array.
-- Emit the opcodes to load sentinel class `Function` and said entry onto the stack.
+- Emit the opcodes to load synth class `Function` and said entry onto the stack.
 - Delete that first non-empty entry.
 - Iterate sequentially through the rest of the table's entries.
   - If the mangled name corresponds to the saved name, emit the opcodes to push it onto the stack, then delete it from the table.
