@@ -5,3 +5,16 @@
     print hashmap.has("two");
     print hashmap.get("one");
 }
+
+{
+    var strToNum = {
+        "one"   : 1,
+        "two"   : 2,
+        "three" : 3
+    };
+    print strToNum;
+
+    var err1 = { "Single element" };
+    var err2 = { nil : };
+    var err3 = { "trailing" : nil, };
+}

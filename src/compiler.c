@@ -862,6 +862,24 @@ static void subscript(bool canAssign){
     emitByte(1);
 }
 
+static void hashmap(bool canAssign){
+    uint8_t idxHashmap = syntheticConstant("Hashmap");
+    uint8_t idxRaw = syntheticConstant("@raw");
+    emitConstant(OP_GET_STL, idxHashmap);
+    uint8_t argCount = 0;
+    do {
+        expression();
+        consume(TOKEN_COLON, "Expect ':' for key-value pairs in hashmap literal.");
+        expression();
+        if (argCount >= UINT8_MAX - 2)
+            error("Hashmap literal can contain no more than 128 entries.");
+        argCount += 2;
+    } while (match(TOKEN_COMMA));
+    consume(TOKEN_RIGHT_BRACE, "Expect '}' after hashmap elements.");
+    emitConstant(OP_INVOKE, idxRaw);
+    emitByte(argCount);
+}
+
 
 static bool tryParseExpression(TokenType terminator){
     // attempts to parse as expression
@@ -1411,6 +1429,7 @@ static void declaration(){
     } else {
         statement();
     }
+    if (parser.panic) synchronize();
 }
 
 
@@ -1418,7 +1437,7 @@ static void declaration(){
 ParseRule rules[] = {
     [TOKEN_LEFT_PAREN]    = {grouping, call,   PREC_CALL},
     [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE}, 
+    [TOKEN_LEFT_BRACE]    = {hashmap,  NULL,   PREC_NONE}, 
     [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
 
     [TOKEN_COMMA]         = {NULL,     NULL,   PREC_NONE},
