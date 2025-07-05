@@ -168,7 +168,7 @@ Value stringNative(int argCount, Value* args){
         // rearrange for call signature of toString().
         args[-1] = args[0];
         pop();
-        invoke(toStringName, 0);
+        callValue(hasToString, 0);
         return EMPTY_VAL();
     }
     return stringPrimitiveNative(argCount, args);
@@ -553,6 +553,20 @@ Value hashmapSetNative(int argCount, Value* args){
     ObjHashmap* hashmap = AS_HASHMAP(args[-1]);
     tableSet(&hashmap->data, args[0], args[1]);
     return args[1];
+}
+
+
+// LOCKABLE SYNTH METHODS
+Value lockableLockNative(int argCount, Value* args){
+    if (IS_INSTANCE(args[-1])){
+        ObjInstance* instance = AS_INSTANCE(args[-1]);
+        setIsLocked((Obj*)instance, true);
+        return NIL_VAL();
+    }
+    if (IS_HASHMAP(args[-1])){
+
+    }
+    return EMPTY_VAL();
 }
 
 

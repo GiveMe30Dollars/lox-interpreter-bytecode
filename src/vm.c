@@ -592,7 +592,7 @@ static InterpreterResult run(bool isSTL){
                 if (!IS_NIL(toStringFunction)){
                     // call toString in separate callframe, then return to this instruction
                     ip--;
-                    THROW(invoke(toStringName, 0));
+                    THROW(callValue(toStringFunction, 0));
                     break;
                 }
                 printValue(pop());

@@ -40,17 +40,17 @@ static Obj* allocateObject(size_t size, ObjType type){
 
 static ObjString* allocateString(char* chars, int length, uint32_t hash){
     // allocate, intern and return a new ObjString
-    ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
-    string->length = length;
-    string->chars = chars;
-    string->hash = hash;
-    setIsLocked(&string->obj, true);
+    ObjString* str = ALLOCATE_OBJ(ObjString, OBJ_STRING);
+    str->length = length;
+    str->chars = chars;
+    str->hash = hash;
+    setIsLocked((Obj*)str, true);
 
-    push(OBJ_VAL(string));
-    tableSet(&vm.strings, OBJ_VAL(string), NIL_VAL());
+    push(OBJ_VAL(str));
+    tableSet(&vm.strings, OBJ_VAL(str), NIL_VAL());
     pop();
 
-    return string;
+    return str;
 }
 ObjString* copyString(const char* start, int length){
     // creates a deep copy of C-substring with terminator (+ '\0')
@@ -127,7 +127,7 @@ ObjFunction* newFunction(){
     function->fromTry = false;
     function->name = NULL;
     initChunk(&function->chunk);
-    setIsLocked(&function->obj, true);
+    setIsLocked((Obj*)function, true);
     return function;
 }
 
@@ -137,7 +137,7 @@ ObjNative* newNative(NativeFn function, int arity, ObjString* name){
     native->function = function;
     native->arity = arity;
     native->name = name;
-    setIsLocked(&native->obj, true);
+    setIsLocked((Obj*)native, true);
     return native;
 }
 
@@ -151,7 +151,7 @@ ObjClosure* newClosure(ObjFunction* function){
     closure->upvalues = upvalues;
     closure->upvalueCount = function->upvalueCount;
     closure->function = function;
-    setIsLocked(&closure->obj, true);
+    setIsLocked((Obj*)closure, true);
 
     return closure;
 }
@@ -162,7 +162,7 @@ ObjClass* newClass(ObjString* name){
     klass->name = name;
     initTable(&klass->methods);
     initTable(&klass->statics);
-    setIsLocked(&klass->obj, true);
+    setIsLocked((Obj*)klass, true);
     return klass;
 }
 
@@ -180,7 +180,6 @@ ObjBoundMethod* newBoundMethod(Value receiver, Obj* method){
     ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
     bound->receiver = receiver;
     bound->method = method;
-    setIsLocked(&bound->obj, true);
     return bound;
 }
 
@@ -203,7 +202,7 @@ ObjArraySlice* newSlice(Value start, Value end, Value step){
     slice->start = start;
     slice->end = end;
     slice->step = step;
-    setIsLocked(&slice->obj, true);
+    setIsLocked((Obj*)slice, true);
 
     return slice;
 }
