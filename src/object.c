@@ -128,7 +128,6 @@ ObjFunction* newFunction(){
     function->name = NULL;
     initChunk(&function->chunk);
     setIsLocked(&function->obj, true);
-
     return function;
 }
 
@@ -139,7 +138,6 @@ ObjNative* newNative(NativeFn function, int arity, ObjString* name){
     native->arity = arity;
     native->name = name;
     setIsLocked(&native->obj, true);
-
     return native;
 }
 
@@ -165,7 +163,6 @@ ObjClass* newClass(ObjString* name){
     initTable(&klass->methods);
     initTable(&klass->statics);
     setIsLocked(&klass->obj, true);
-
     return klass;
 }
 
@@ -174,6 +171,7 @@ ObjInstance* newInstance(ObjClass* klass){
     ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
     instance->klass = klass;
     initTable(&instance->fields);
+    instance->hash = -1;
     return instance;
 }
 
@@ -183,7 +181,6 @@ ObjBoundMethod* newBoundMethod(Value receiver, Obj* method){
     bound->receiver = receiver;
     bound->method = method;
     setIsLocked(&bound->obj, true);
-
     return bound;
 }
 
@@ -191,8 +188,6 @@ ObjBoundMethod* newBoundMethod(Value receiver, Obj* method){
 ObjException* newException(Value payload){
     ObjException* exception = ALLOCATE_OBJ(ObjException, OBJ_EXCEPTION);
     exception->payload = payload;
-    setIsLocked(&exception->obj, true);
-
     return exception;
 }
 
@@ -200,6 +195,7 @@ ObjException* newException(Value payload){
 ObjArray* newArray(){
     ObjArray* array = ALLOCATE_OBJ(ObjArray, OBJ_ARRAY);
     initValueArray(&array->data);
+    array->hash = -1;
     return array;
 }
 ObjArraySlice* newSlice(Value start, Value end, Value step){
@@ -216,6 +212,7 @@ ObjArraySlice* newSlice(Value start, Value end, Value step){
 ObjHashmap* newHashmap(){
     ObjHashmap* hashmap = ALLOCATE_OBJ(ObjHashmap, OBJ_HASHMAP);
     initTable(&hashmap->data);
+    hashmap->hash = -1;
     return hashmap;
 }
 

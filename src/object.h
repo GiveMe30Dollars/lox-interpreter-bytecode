@@ -177,6 +177,7 @@ typedef struct {
     Obj obj;
     ObjClass* klass;
     HashTable fields;
+    uint32_t hash;
 } ObjInstance;
 ObjInstance* newInstance(ObjClass* klass);
 
@@ -201,6 +202,7 @@ ObjException* newException(Value payload);
 typedef struct {
     Obj obj;
     ValueArray data;
+    uint32_t hash;
 } ObjArray;
 ObjArray* newArray();
 
@@ -219,6 +221,7 @@ ObjArraySlice* newSlice(Value start, Value end, Value step);
 typedef struct {
     Obj obj;
     HashTable data;
+    uint32_t hash;
 } ObjHashmap;
 ObjHashmap* newHashmap();
 
