@@ -26,7 +26,6 @@ uint32_t hashEight(uint64_t key){
     return bitcast.ints[0] + bitcast.ints[1];
 }
 
-
 void initTable(HashTable* table){
     table->count = 0;
     table->capacity = 0;
@@ -39,7 +38,7 @@ void freeTable(HashTable* table){
 
 
 // HELPRE FUNCTIONS FOR HASH TABLE
-static uint32_t getHash(Value value){
+uint32_t getHash(Value value){
     if (IS_NIL(value)){
         return 5;
     } else if (IS_BOOL(value)){
@@ -50,6 +49,10 @@ static uint32_t getHash(Value value){
         switch (OBJ_TYPE(value)){
             case OBJ_STRING:
                 return AS_STRING(value)->hash;
+            case OBJ_ARRAY:
+                return AS_ARRAY(value)->hash;
+            case OBJ_HASHMAP:
+                return AS_HASHMAP(value)->hash;
             case OBJ_FUNCTION:
             case OBJ_NATIVE:
             case OBJ_CLOSURE:

@@ -13,8 +13,9 @@
         "three" : 3
     };
     print strToNum;
-
+    /*
     var err1 = { "Single element" };
     var err2 = { nil : };
     var err3 = { "trailing" : nil, };
+    */
 }

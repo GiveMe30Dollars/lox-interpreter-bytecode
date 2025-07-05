@@ -6,6 +6,7 @@
 
 // HASHING ALGORITHM (FNV-1a)
 uint32_t hashBytes(const uint8_t* key, size_t numOfBytes);
+uint32_t getHash(Value value);
 
 // ACCESS MACROS
 #define HASH_CSTRING(string, length) (hashBytes((uint8_t*)(string), length * sizeof(char)))
