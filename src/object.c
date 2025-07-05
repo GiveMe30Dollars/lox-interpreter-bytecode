@@ -23,6 +23,7 @@ static Obj* allocateObject(size_t size, ObjType type){
     #else
     object->type = type;
     object->isMarked = false;
+    object->isLocked = false;
     object->next = vm.objects;
     vm.objects = object;
     #endif
@@ -43,9 +44,12 @@ static ObjString* allocateString(char* chars, int length, uint32_t hash){
     string->length = length;
     string->chars = chars;
     string->hash = hash;
+    setIsLocked(&string->obj, true);
+
     push(OBJ_VAL(string));
     tableSet(&vm.strings, OBJ_VAL(string), NIL_VAL());
     pop();
+
     return string;
 }
 ObjString* copyString(const char* start, int length){
@@ -123,6 +127,8 @@ ObjFunction* newFunction(){
     function->fromTry = false;
     function->name = NULL;
     initChunk(&function->chunk);
+    setIsLocked(&function->obj, true);
+
     return function;
 }
 
@@ -132,6 +138,8 @@ ObjNative* newNative(NativeFn function, int arity, ObjString* name){
     native->function = function;
     native->arity = arity;
     native->name = name;
+    setIsLocked(&native->obj, true);
+
     return native;
 }
 
@@ -145,6 +153,8 @@ ObjClosure* newClosure(ObjFunction* function){
     closure->upvalues = upvalues;
     closure->upvalueCount = function->upvalueCount;
     closure->function = function;
+    setIsLocked(&closure->obj, true);
+
     return closure;
 }
 
@@ -154,6 +164,8 @@ ObjClass* newClass(ObjString* name){
     klass->name = name;
     initTable(&klass->methods);
     initTable(&klass->statics);
+    setIsLocked(&klass->obj, true);
+
     return klass;
 }
 
@@ -170,6 +182,8 @@ ObjBoundMethod* newBoundMethod(Value receiver, Obj* method){
     ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
     bound->receiver = receiver;
     bound->method = method;
+    setIsLocked(&bound->obj, true);
+
     return bound;
 }
 
@@ -177,6 +191,8 @@ ObjBoundMethod* newBoundMethod(Value receiver, Obj* method){
 ObjException* newException(Value payload){
     ObjException* exception = ALLOCATE_OBJ(ObjException, OBJ_EXCEPTION);
     exception->payload = payload;
+    setIsLocked(&exception->obj, true);
+
     return exception;
 }
 
@@ -191,6 +207,8 @@ ObjArraySlice* newSlice(Value start, Value end, Value step){
     slice->start = start;
     slice->end = end;
     slice->step = step;
+    setIsLocked(&slice->obj, true);
+
     return slice;
 }
 

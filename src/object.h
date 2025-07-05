@@ -29,8 +29,9 @@ typedef enum {
 #ifdef OBJ_HEADER_COMPRESSION
 
 // Bit representation:
-// .......M NNNNNNNN NNNNNNNN NNNNNNNN NNNNNNNN NNNNNNNN NNNNNNNN EEEEEEEE
+// ...L...M NNNNNNNN NNNNNNNN NNNNNNNN NNNNNNNN NNNNNNNN NNNNNNNN EEEEEEEE
 // M: isMarked
+// L: isLocked
 // N: next pointer
 // E: ObjType enum
 
@@ -44,6 +45,9 @@ static inline ObjType objType(Obj* object){
 static inline bool isMarked(Obj* object){
     return (bool)((object->header >> 56) & 0x01);
 }
+static inline bool isLocked(Obj* object){
+    return (bool)((object->header >> 60) & 0x01);
+}
 static inline Obj* objNext(Obj* object){
     return (Obj*)((object->header & 0x00ffffffffffff00) >> 8);
 }
@@ -54,6 +58,9 @@ static inline void setObjType(Obj* object, ObjType type){
 static inline void setIsMarked(Obj* object, bool isMarked){
     object->header = (object->header & 0x00ffffffffffffff) | ((uint64_t)isMarked << 56);
 }
+static inline void setIsLocked(Obj* object, bool isMarked){
+    object->header = (object->header & 0x00ffffffffffffff) | ((uint64_t)isMarked << 60);
+}
 static inline void setObjNext(Obj* object, Obj* next){
     object->header = (object->header & 0xff000000000000ff) | ((uint64_t)next << 8);
 }
@@ -63,6 +70,7 @@ static inline void setObjNext(Obj* object, Obj* next){
 struct Obj {
     ObjType type;
     bool isMarked;
+    bool isLocked;
     struct Obj* next;
 };
 
@@ -71,6 +79,9 @@ static inline ObjType objType(Obj* object){
 }
 static inline bool isMarked(Obj* object){
     return object->isMarked;
+}
+static inline bool isLocked(Obj* object){
+    return object->isLocked;
 }
 static inline Obj* objNext(Obj* object){
     return object->next;
@@ -81,6 +92,9 @@ static inline void setObjType(Obj* object, ObjType type){
 }
 static inline void setIsMarked(Obj* object, bool isMarked){
     object->isMarked = isMarked;
+}
+static inline void setIsLocked(Obj* object, bool isLocked){
+    object->isLocked = isLocked;
 }
 static inline void setObjNext(Obj* object, Obj* next){
     object->next = next;
